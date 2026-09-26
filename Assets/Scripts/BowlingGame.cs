@@ -5,14 +5,25 @@ public class BowlingGame : MonoBehaviour
     [SerializeField] private Rigidbody ball;
     [SerializeField] private BowlingPin[] pins;
     [SerializeField] private float aimSpeed = 4f;
-    [SerializeField] private float throwPower = 36f;
+    [SerializeField] private float throwPower = 18f;
 
-    // The ball starts close enough to the camera to be visible before the throw.
-    private readonly Vector3 ballStart = new Vector3(0f, 0.5f, -6f);
+    private readonly Vector3 ballStart = new Vector3(0f, 0.5f, -4.5f);
     private bool thrown;
     private bool roundScored;
     private float throwTime;
     private int score;
+
+    private void Awake()
+    {
+        // Keep the release point fully inside the Game view on every machine.
+        Camera gameCamera = Camera.main;
+        if (gameCamera != null)
+        {
+            gameCamera.transform.position = new Vector3(0f, 3.6f, -12.5f);
+            gameCamera.transform.LookAt(new Vector3(0f, 0.45f, 8f));
+            gameCamera.fieldOfView = 60f;
+        }
+    }
 
     private void Start()
     {
@@ -21,6 +32,12 @@ public class BowlingGame : MonoBehaviour
 
     private void Update()
     {
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            ResetRound();
+            return;
+        }
+
         if (!thrown)
         {
             float movement = Input.GetAxisRaw("Horizontal") * aimSpeed * Time.deltaTime;
@@ -33,7 +50,8 @@ public class BowlingGame : MonoBehaviour
                 thrown = true;
                 throwTime = Time.time;
                 ball.isKinematic = false;
-                ball.AddForce(Vector3.forward * throwPower, ForceMode.Impulse);
+                ball.linearVelocity = Vector3.forward * throwPower;
+                ball.angularVelocity = Vector3.right * (throwPower * 2f);
             }
         }
 
@@ -43,10 +61,6 @@ public class BowlingGame : MonoBehaviour
             roundScored = true;
         }
 
-        if (Input.GetKeyDown(KeyCode.R))
-        {
-            ResetRound();
-        }
     }
 
     private int CountFallenPins()
@@ -70,6 +84,7 @@ public class BowlingGame : MonoBehaviour
         score = 0;
 
         ball.isKinematic = true;
+        ball.linearDamping = 0f;
         ball.linearVelocity = Vector3.zero;
         ball.angularVelocity = Vector3.zero;
         ball.position = ballStart;
@@ -101,7 +116,12 @@ public class BowlingGame : MonoBehaviour
         string result = roundScored ? $"倒したピン: {score} / {pins.Length}" : "狙いを定めて投げよう";
         GUI.Label(new Rect(25, 96, 500, 30), result, textStyle);
 
-        if (roundScored && GUI.Button(new Rect(25, 134, 130, 36), "もう一度投げる"))
+        if (GUI.Button(new Rect(25, 134, 130, 36), "リセット (R)"))
+        {
+            ResetRound();
+        }
+
+        if (roundScored && GUI.Button(new Rect(25, 178, 130, 36), "もう一度投げる"))
         {
             ResetRound();
         }

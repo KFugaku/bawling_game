@@ -56,10 +56,10 @@ namespace MiniBowling.Editor
             GameObject cameraObject = new GameObject("Main Camera");
             Camera camera = cameraObject.AddComponent<Camera>();
             cameraObject.tag = "MainCamera";
-            cameraObject.transform.position = new Vector3(0f, 5.8f, -11.5f);
-            cameraObject.transform.LookAt(new Vector3(0f, 0.7f, 8f));
+            cameraObject.transform.position = new Vector3(0f, 3.6f, -12.5f);
+            cameraObject.transform.LookAt(new Vector3(0f, 0.45f, 8f));
             camera.backgroundColor = new Color(0.06f, 0.08f, 0.13f);
-            camera.fieldOfView = 53f;
+            camera.fieldOfView = 60f;
         }
 
         private static void CreateLight()
@@ -75,12 +75,12 @@ namespace MiniBowling.Editor
         {
             GameObject ball = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             ball.name = "Ball";
-            ball.transform.position = new Vector3(0f, 0.5f, -6f);
+            ball.transform.position = new Vector3(0f, 0.5f, -4.5f);
             ball.transform.localScale = Vector3.one;
             ball.GetComponent<Renderer>().sharedMaterial = material;
             Rigidbody body = ball.AddComponent<Rigidbody>();
             body.mass = 6f;
-            body.linearDamping = 0.02f;
+            body.linearDamping = 0f;
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             return body;
         }
