@@ -89,22 +89,25 @@ namespace MiniBowling.Editor
         {
             BowlingPin[] pins = new BowlingPin[10];
             int index = 0;
-            // Keep a visible gap between pins so a direct hit is rewarding but not an automatic strike.
-            const float spacing = 0.82f;
-            const float rowDepth = 0.72f;
+            // Model units use a ball diameter of 1. A regulation pin is 15 in tall and at most
+            // 4.797 in wide, while adjacent pin centers are 12 in apart (ball diameter: 8.5 in).
+            const float pinHeight = 1.765f;
+            const float pinDiameter = 0.564f;
+            const float pinSpacing = 1.412f;
+            const float rowDepth = 1.223f;
             for (int row = 0; row < 4; row++)
             {
                 for (int column = 0; column <= row; column++)
                 {
-                    float x = (column - row * 0.5f) * spacing;
+                    float x = (column - row * 0.5f) * pinSpacing;
                     float z = 16f + row * rowDepth;
                     GameObject pin = GameObject.CreatePrimitive(PrimitiveType.Capsule);
                     pin.name = $"Pin {index + 1}";
-                    pin.transform.position = new Vector3(x, 0.75f, z);
-                    pin.transform.localScale = new Vector3(0.42f, 0.75f, 0.42f);
+                    pin.transform.position = new Vector3(x, pinHeight * 0.5f, z);
+                    pin.transform.localScale = new Vector3(pinDiameter, pinHeight * 0.5f, pinDiameter);
                     pin.GetComponent<Renderer>().sharedMaterial = pinMaterial;
                     Rigidbody body = pin.AddComponent<Rigidbody>();
-                    body.mass = 2.2f;
+                    body.mass = 1.31f;
                     body.linearDamping = 0.16f;
                     body.angularDamping = 0.24f;
                     body.centerOfMass = new Vector3(0f, -0.22f, 0f);

@@ -57,8 +57,8 @@ public sealed class BowlingPin : MonoBehaviour
             return;
         }
 
-        // Heavier, low-centered pins require a deliberate hit and do not all topple at once.
-        body.mass = 2.2f;
+        // A 16 lb ball versus a 3.5 lb pin maps to 6.0 versus 1.31 in this scene.
+        body.mass = 1.31f;
         body.linearDamping = 0.16f;
         body.angularDamping = 0.24f;
         body.centerOfMass = new Vector3(0f, -0.22f, 0f);
