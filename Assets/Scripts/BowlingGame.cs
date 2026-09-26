@@ -98,12 +98,14 @@ public class BowlingGame : MonoBehaviour
 
         if (ball != null)
         {
-            ball.isKinematic = true;
+            // Velocity can only be changed while the Rigidbody is dynamic.
+            ball.isKinematic = false;
             ball.linearDamping = 0f;
             ball.linearVelocity = Vector3.zero;
             ball.angularVelocity = Vector3.zero;
             ball.position = ballStart;
             ball.rotation = Quaternion.identity;
+            ball.isKinematic = true;
         }
 
         if (pins != null)
