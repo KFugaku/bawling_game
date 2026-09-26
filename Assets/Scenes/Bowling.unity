@@ -160,10 +160,10 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 13477762}
   serializedVersion: 5
-  m_Mass: 0.7
-  m_LinearDamping: 0.08
-  m_AngularDamping: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_Mass: 2.2
+  m_LinearDamping: 0.16
+  m_AngularDamping: 0.24
+  m_CenterOfMass: {x: 0, y: -0.22, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
   m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
   m_IncludeLayers:
@@ -267,7 +267,7 @@ Transform:
   m_GameObject: {fileID: 13477762}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.275, y: 0.75, z: 17.485}
+  m_LocalPosition: {x: -0.41, y: 0.75, z: 18.16}
   m_LocalScale: {x: 0.42, y: 0.75, z: 0.42}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -604,10 +604,10 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 325913713}
   serializedVersion: 5
-  m_Mass: 0.7
-  m_LinearDamping: 0.08
-  m_AngularDamping: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_Mass: 2.2
+  m_LinearDamping: 0.16
+  m_AngularDamping: 0.24
+  m_CenterOfMass: {x: 0, y: -0.22, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
   m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
   m_IncludeLayers:
@@ -711,7 +711,7 @@ Transform:
   m_GameObject: {fileID: 325913713}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.55, y: 0.75, z: 16.99}
+  m_LocalPosition: {x: -0.82, y: 0.75, z: 17.44}
   m_LocalScale: {x: 0.42, y: 0.75, z: 0.42}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -848,10 +848,10 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 479654991}
   serializedVersion: 5
-  m_Mass: 0.7
-  m_LinearDamping: 0.08
-  m_AngularDamping: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_Mass: 2.2
+  m_LinearDamping: 0.16
+  m_AngularDamping: 0.24
+  m_CenterOfMass: {x: 0, y: -0.22, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
   m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
   m_IncludeLayers:
@@ -955,7 +955,7 @@ Transform:
   m_GameObject: {fileID: 479654991}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.75, z: 16.99}
+  m_LocalPosition: {x: 0, y: 0.75, z: 17.44}
   m_LocalScale: {x: 0.42, y: 0.75, z: 0.42}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1003,10 +1003,10 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 696491881}
   serializedVersion: 5
-  m_Mass: 0.7
-  m_LinearDamping: 0.08
-  m_AngularDamping: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_Mass: 2.2
+  m_LinearDamping: 0.16
+  m_AngularDamping: 0.24
+  m_CenterOfMass: {x: 0, y: -0.22, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
   m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
   m_IncludeLayers:
@@ -1247,10 +1247,10 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 832598049}
   serializedVersion: 5
-  m_Mass: 0.7
-  m_LinearDamping: 0.08
-  m_AngularDamping: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_Mass: 2.2
+  m_LinearDamping: 0.16
+  m_AngularDamping: 0.24
+  m_CenterOfMass: {x: 0, y: -0.22, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
   m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
   m_IncludeLayers:
@@ -1354,7 +1354,7 @@ Transform:
   m_GameObject: {fileID: 832598049}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.275, y: 0.75, z: 17.485}
+  m_LocalPosition: {x: 0.41, y: 0.75, z: 18.16}
   m_LocalScale: {x: 0.42, y: 0.75, z: 0.42}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1402,10 +1402,10 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 871108909}
   serializedVersion: 5
-  m_Mass: 0.7
-  m_LinearDamping: 0.08
-  m_AngularDamping: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_Mass: 2.2
+  m_LinearDamping: 0.16
+  m_AngularDamping: 0.24
+  m_CenterOfMass: {x: 0, y: -0.22, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
   m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
   m_IncludeLayers:
@@ -1509,7 +1509,7 @@ Transform:
   m_GameObject: {fileID: 871108909}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.82500005, y: 0.75, z: 17.485}
+  m_LocalPosition: {x: -1.23, y: 0.75, z: 18.16}
   m_LocalScale: {x: 0.42, y: 0.75, z: 0.42}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1557,10 +1557,10 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 871575966}
   serializedVersion: 5
-  m_Mass: 0.7
-  m_LinearDamping: 0.08
-  m_AngularDamping: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_Mass: 2.2
+  m_LinearDamping: 0.16
+  m_AngularDamping: 0.24
+  m_CenterOfMass: {x: 0, y: -0.22, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
   m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
   m_IncludeLayers:
@@ -1664,7 +1664,7 @@ Transform:
   m_GameObject: {fileID: 871575966}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.82500005, y: 0.75, z: 17.485}
+  m_LocalPosition: {x: 1.23, y: 0.75, z: 18.16}
   m_LocalScale: {x: 0.42, y: 0.75, z: 0.42}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1712,10 +1712,10 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 887511592}
   serializedVersion: 5
-  m_Mass: 0.7
-  m_LinearDamping: 0.08
-  m_AngularDamping: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_Mass: 2.2
+  m_LinearDamping: 0.16
+  m_AngularDamping: 0.24
+  m_CenterOfMass: {x: 0, y: -0.22, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
   m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
   m_IncludeLayers:
@@ -1819,7 +1819,7 @@ Transform:
   m_GameObject: {fileID: 887511592}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.55, y: 0.75, z: 16.99}
+  m_LocalPosition: {x: 0.82, y: 0.75, z: 17.44}
   m_LocalScale: {x: 0.42, y: 0.75, z: 0.42}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -2898,10 +2898,10 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1888816072}
   serializedVersion: 5
-  m_Mass: 0.7
-  m_LinearDamping: 0.08
-  m_AngularDamping: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_Mass: 2.2
+  m_LinearDamping: 0.16
+  m_AngularDamping: 0.24
+  m_CenterOfMass: {x: 0, y: -0.22, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
   m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
   m_IncludeLayers:
@@ -3005,7 +3005,7 @@ Transform:
   m_GameObject: {fileID: 1888816072}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.275, y: 0.75, z: 16.495}
+  m_LocalPosition: {x: 0.41, y: 0.75, z: 16.72}
   m_LocalScale: {x: 0.42, y: 0.75, z: 0.42}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -3281,10 +3281,10 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2144812848}
   serializedVersion: 5
-  m_Mass: 0.7
-  m_LinearDamping: 0.08
-  m_AngularDamping: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_Mass: 2.2
+  m_LinearDamping: 0.16
+  m_AngularDamping: 0.24
+  m_CenterOfMass: {x: 0, y: -0.22, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
   m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
   m_IncludeLayers:
@@ -3388,7 +3388,7 @@ Transform:
   m_GameObject: {fileID: 2144812848}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.275, y: 0.75, z: 16.495}
+  m_LocalPosition: {x: -0.41, y: 0.75, z: 16.72}
   m_LocalScale: {x: 0.42, y: 0.75, z: 0.42}
   m_ConstrainProportionsScale: 0
   m_Children:
