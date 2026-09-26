@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class BowlingGame : MonoBehaviour
@@ -15,6 +16,8 @@ public class BowlingGame : MonoBehaviour
 
     private void Awake()
     {
+        ResolveSceneReferences();
+
         // Keep the release point fully inside the Game view on every machine.
         Camera gameCamera = Camera.main;
         if (gameCamera != null)
@@ -32,6 +35,11 @@ public class BowlingGame : MonoBehaviour
 
     private void Update()
     {
+        if (ball == null)
+        {
+            return;
+        }
+
         if (Input.GetKeyDown(KeyCode.R))
         {
             ResetRound();
@@ -66,9 +74,14 @@ public class BowlingGame : MonoBehaviour
     private int CountFallenPins()
     {
         int fallen = 0;
+        if (pins == null)
+        {
+            return fallen;
+        }
+
         foreach (BowlingPin pin in pins)
         {
-            if (pin.IsFallen)
+            if (pin != null && pin.IsFallen)
             {
                 fallen++;
             }
@@ -83,16 +96,86 @@ public class BowlingGame : MonoBehaviour
         roundScored = false;
         score = 0;
 
-        ball.isKinematic = true;
-        ball.linearDamping = 0f;
-        ball.linearVelocity = Vector3.zero;
-        ball.angularVelocity = Vector3.zero;
-        ball.position = ballStart;
-        ball.rotation = Quaternion.identity;
-
-        foreach (BowlingPin pin in pins)
+        if (ball != null)
         {
-            pin.ResetPin();
+            ball.isKinematic = true;
+            ball.linearDamping = 0f;
+            ball.linearVelocity = Vector3.zero;
+            ball.angularVelocity = Vector3.zero;
+            ball.position = ballStart;
+            ball.rotation = Quaternion.identity;
+        }
+
+        if (pins != null)
+        {
+            foreach (BowlingPin pin in pins)
+            {
+                if (pin != null)
+                {
+                    pin.ResetPin();
+                }
+            }
+        }
+
+        Physics.SyncTransforms();
+    }
+
+    private void ResolveSceneReferences()
+    {
+        if (ball == null)
+        {
+            GameObject ballObject = GameObject.Find("Ball");
+            if (ballObject != null)
+            {
+                ball = ballObject.GetComponent<Rigidbody>();
+            }
+        }
+
+        bool needsPinRefresh = pins == null || pins.Length == 0;
+        if (!needsPinRefresh)
+        {
+            foreach (BowlingPin pin in pins)
+            {
+                if (pin == null)
+                {
+                    needsPinRefresh = true;
+                    break;
+                }
+            }
+        }
+
+        if (needsPinRefresh)
+        {
+            List<BowlingPin> discoveredPins = new List<BowlingPin>();
+            Transform[] sceneTransforms = FindObjectsByType<Transform>(FindObjectsSortMode.None);
+            foreach (Transform sceneTransform in sceneTransforms)
+            {
+                if (!sceneTransform.name.StartsWith("Pin "))
+                {
+                    continue;
+                }
+
+                BowlingPin pin = sceneTransform.GetComponent<BowlingPin>();
+                if (pin == null)
+                {
+                    pin = sceneTransform.gameObject.AddComponent<BowlingPin>();
+                }
+
+                discoveredPins.Add(pin);
+            }
+
+            discoveredPins.Sort((left, right) => string.CompareOrdinal(left.name, right.name));
+            pins = discoveredPins.ToArray();
+        }
+
+        if (ball == null)
+        {
+            Debug.LogError("BowlingGame: Ball Rigidbody could not be found.");
+        }
+
+        if (pins == null || pins.Length == 0)
+        {
+            Debug.LogError("BowlingGame: Bowling pins could not be found.");
         }
     }
 
@@ -113,7 +196,8 @@ public class BowlingGame : MonoBehaviour
         GUI.Label(new Rect(24, 22, 500, 40), "Mini Bowling", titleStyle);
         GUI.Label(new Rect(25, 66, 600, 30), "← → で狙う　Space で投球　R でやり直し", textStyle);
 
-        string result = roundScored ? $"倒したピン: {score} / {pins.Length}" : "狙いを定めて投げよう";
+        int pinCount = pins?.Length ?? 0;
+        string result = roundScored ? $"倒したピン: {score} / {pinCount}" : "狙いを定めて投げよう";
         GUI.Label(new Rect(25, 96, 500, 30), result, textStyle);
 
         if (GUI.Button(new Rect(25, 134, 130, 36), "リセット (R)"))
@@ -125,29 +209,5 @@ public class BowlingGame : MonoBehaviour
         {
             ResetRound();
         }
-    }
-}
-
-public class BowlingPin : MonoBehaviour
-{
-    private Rigidbody body;
-    private Vector3 startPosition;
-    private Quaternion startRotation;
-
-    private void Awake()
-    {
-        body = GetComponent<Rigidbody>();
-        startPosition = transform.position;
-        startRotation = transform.rotation;
-    }
-
-    public bool IsFallen => transform.position.y < 0.35f || Vector3.Dot(transform.up, Vector3.up) < 0.7f;
-
-    public void ResetPin()
-    {
-        body.linearVelocity = Vector3.zero;
-        body.angularVelocity = Vector3.zero;
-        transform.SetPositionAndRotation(startPosition, startRotation);
-        body.Sleep();
     }
 }

@@ -149,7 +149,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 13477762}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 1433000258}
+  m_Script: {fileID: 11500000, guid: d01a6ae9c54343f2b5b28e069c521a7b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BowlingPin
 --- !u!54 &13477764
@@ -593,7 +593,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 325913713}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 1433000258}
+  m_Script: {fileID: 11500000, guid: d01a6ae9c54343f2b5b28e069c521a7b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BowlingPin
 --- !u!54 &325913715
@@ -837,7 +837,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 479654991}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 1433000258}
+  m_Script: {fileID: 11500000, guid: d01a6ae9c54343f2b5b28e069c521a7b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BowlingPin
 --- !u!54 &479654993
@@ -992,7 +992,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 696491881}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 1433000258}
+  m_Script: {fileID: 11500000, guid: d01a6ae9c54343f2b5b28e069c521a7b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BowlingPin
 --- !u!54 &696491883
@@ -1236,7 +1236,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 832598049}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 1433000258}
+  m_Script: {fileID: 11500000, guid: d01a6ae9c54343f2b5b28e069c521a7b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BowlingPin
 --- !u!54 &832598051
@@ -1391,7 +1391,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 871108909}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 1433000258}
+  m_Script: {fileID: 11500000, guid: d01a6ae9c54343f2b5b28e069c521a7b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BowlingPin
 --- !u!54 &871108911
@@ -1546,7 +1546,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 871575966}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 1433000258}
+  m_Script: {fileID: 11500000, guid: d01a6ae9c54343f2b5b28e069c521a7b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BowlingPin
 --- !u!54 &871575968
@@ -1701,7 +1701,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 887511592}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 1433000258}
+  m_Script: {fileID: 11500000, guid: d01a6ae9c54343f2b5b28e069c521a7b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BowlingPin
 --- !u!54 &887511594
@@ -2887,7 +2887,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 1888816072}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 1433000258}
+  m_Script: {fileID: 11500000, guid: d01a6ae9c54343f2b5b28e069c521a7b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BowlingPin
 --- !u!54 &1888816074
@@ -3270,7 +3270,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 2144812848}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 1433000258}
+  m_Script: {fileID: 11500000, guid: d01a6ae9c54343f2b5b28e069c521a7b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BowlingPin
 --- !u!54 &2144812850
