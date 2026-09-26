@@ -75,12 +75,12 @@ namespace MiniBowling.Editor
         {
             GameObject ball = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             ball.name = "Ball";
-            ball.transform.position = new Vector3(0f, 0.5f, -8f);
+            ball.transform.position = new Vector3(0f, 0.5f, -6f);
             ball.transform.localScale = Vector3.one;
             ball.GetComponent<Renderer>().sharedMaterial = material;
             Rigidbody body = ball.AddComponent<Rigidbody>();
             body.mass = 6f;
-            body.linearDamping = 0.12f;
+            body.linearDamping = 0.02f;
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             return body;
         }

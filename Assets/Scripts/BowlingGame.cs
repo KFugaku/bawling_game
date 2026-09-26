@@ -5,9 +5,10 @@ public class BowlingGame : MonoBehaviour
     [SerializeField] private Rigidbody ball;
     [SerializeField] private BowlingPin[] pins;
     [SerializeField] private float aimSpeed = 4f;
-    [SerializeField] private float throwPower = 14f;
+    [SerializeField] private float throwPower = 36f;
 
-    private readonly Vector3 ballStart = new Vector3(0f, 0.5f, -8f);
+    // The ball starts close enough to the camera to be visible before the throw.
+    private readonly Vector3 ballStart = new Vector3(0f, 0.5f, -6f);
     private bool thrown;
     private bool roundScored;
     private float throwTime;

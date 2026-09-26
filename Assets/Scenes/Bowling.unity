@@ -2068,7 +2068,7 @@ MonoBehaviour:
   - {fileID: 832598050}
   - {fileID: 871575967}
   aimSpeed: 4
-  throwPower: 14
+  throwPower: 36
 --- !u!4 &972460424
 Transform:
   m_ObjectHideFlags: 0
@@ -3130,7 +3130,7 @@ Rigidbody:
   m_GameObject: {fileID: 2121414953}
   serializedVersion: 5
   m_Mass: 6
-  m_LinearDamping: 0.12
+  m_LinearDamping: 0.02
   m_AngularDamping: 0.05
   m_CenterOfMass: {x: 0, y: 0, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
@@ -3234,7 +3234,7 @@ Transform:
   m_GameObject: {fileID: 2121414953}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.5, z: -8}
+  m_LocalPosition: {x: 0, y: 0.5, z: -6}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
