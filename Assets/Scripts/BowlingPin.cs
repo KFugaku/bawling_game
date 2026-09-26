@@ -57,10 +57,10 @@ public sealed class BowlingPin : MonoBehaviour
             return;
         }
 
-        // A 16 lb ball versus a 3.5 lb pin maps to 6.0 versus 1.31 in this scene.
-        body.mass = 1.31f;
+        // A 16 lb ball versus a 3.5 lb pin, with the USBC target center of mass.
+        body.mass = RegulationBowlingDimensions.PinWeight;
         body.linearDamping = 0.16f;
         body.angularDamping = 0.24f;
-        body.centerOfMass = new Vector3(0f, -0.22f, 0f);
+        body.centerOfMass = new Vector3(0f, RegulationBowlingDimensions.PinCenterOfMassLocalY, 0f);
     }
 }

@@ -7,6 +7,7 @@ namespace MiniBowling.Editor
 {
     public static class CreateBowlingScene
     {
+        [MenuItem("Mini Bowling/Create Regulation Scene")]
         public static void Create()
         {
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -23,13 +24,11 @@ namespace MiniBowling.Editor
             Material pinMaterial = CreateMaterial("Assets/Materials/Pin.mat", Color.white);
             Material stripeMaterial = CreateMaterial("Assets/Materials/Stripe.mat", new Color(0.85f, 0.05f, 0.05f));
             Material wallMaterial = CreateMaterial("Assets/Materials/Wall.mat", new Color(0.08f, 0.1f, 0.16f));
+            Material gutterMaterial = CreateMaterial("Assets/Materials/Gutter.mat", new Color(0.035f, 0.04f, 0.055f));
 
             CreateCamera();
             CreateLight();
-            CreateCube("Lane", new Vector3(0f, -0.15f, 7f), new Vector3(4.8f, 0.3f, 31f), laneMaterial);
-            CreateCube("Left Rail", new Vector3(-2.55f, 0.1f, 7f), new Vector3(0.18f, 0.5f, 31f), wallMaterial);
-            CreateCube("Right Rail", new Vector3(2.55f, 0.1f, 7f), new Vector3(0.18f, 0.5f, 31f), wallMaterial);
-            CreateCube("Backstop", new Vector3(0f, 1.5f, 22.5f), new Vector3(5.4f, 3f, 0.3f), wallMaterial);
+            CreateLaneGeometry(laneMaterial, gutterMaterial, wallMaterial);
 
             Rigidbody ball = CreateBall(ballMaterial);
             BowlingPin[] pins = CreatePins(pinMaterial, stripeMaterial);
@@ -56,10 +55,10 @@ namespace MiniBowling.Editor
             GameObject cameraObject = new GameObject("Main Camera");
             Camera camera = cameraObject.AddComponent<Camera>();
             cameraObject.tag = "MainCamera";
-            cameraObject.transform.position = new Vector3(0f, 3.6f, -12.5f);
-            cameraObject.transform.LookAt(new Vector3(0f, 0.45f, 8f));
+            cameraObject.transform.position = new Vector3(0f, 20f, -40f);
+            cameraObject.transform.LookAt(new Vector3(0f, 0.5f, 35f));
             camera.backgroundColor = new Color(0.06f, 0.08f, 0.13f);
-            camera.fieldOfView = 60f;
+            camera.fieldOfView = 52f;
         }
 
         private static void CreateLight()
@@ -71,15 +70,85 @@ namespace MiniBowling.Editor
             lightObject.transform.rotation = Quaternion.Euler(50f, -25f, 0f);
         }
 
+        private static void CreateLaneGeometry(Material laneMaterial, Material gutterMaterial, Material wallMaterial)
+        {
+            const float surfaceThickness = 0.3f;
+            CreateCube(
+                "Approach",
+                new Vector3(0f, -surfaceThickness * 0.5f, -RegulationBowlingDimensions.ApproachLength * 0.5f),
+                new Vector3(RegulationBowlingDimensions.LaneWidth, surfaceThickness, RegulationBowlingDimensions.ApproachLength),
+                laneMaterial);
+            CreateCube(
+                "Lane",
+                new Vector3(0f, -surfaceThickness * 0.5f, RegulationBowlingDimensions.FoulLineToHeadPin * 0.5f),
+                new Vector3(RegulationBowlingDimensions.LaneWidth, surfaceThickness, RegulationBowlingDimensions.FoulLineToHeadPin),
+                laneMaterial);
+            CreateCube(
+                "Pin Deck",
+                new Vector3(0f, -surfaceThickness * 0.5f, RegulationBowlingDimensions.FoulLineToHeadPin + RegulationBowlingDimensions.HeadPinToRearDeck * 0.5f),
+                new Vector3(RegulationBowlingDimensions.LaneWidth, surfaceThickness, RegulationBowlingDimensions.HeadPinToRearDeck),
+                laneMaterial);
+
+            GameObject foulLine = CreateCube(
+                "Foul Line",
+                new Vector3(0f, 0.006f, 0f),
+                new Vector3(RegulationBowlingDimensions.LaneWidth, 0.012f, RegulationBowlingDimensions.FoulLineWidth),
+                wallMaterial);
+            Object.DestroyImmediate(foulLine.GetComponent<Collider>());
+
+            CreateFlatGutter("Left Gutter", -1f, gutterMaterial);
+            CreateFlatGutter("Right Gutter", 1f, gutterMaterial);
+
+            float kickbackStart = RegulationBowlingDimensions.FoulLineToHeadPin - 15f / RegulationBowlingDimensions.InchesPerUnit;
+            float kickbackEnd = RegulationBowlingDimensions.LaneLength + RegulationBowlingDimensions.PitDepth;
+            float kickbackLength = kickbackEnd - kickbackStart;
+            float kickbackHalfWidth = RegulationBowlingDimensions.KickbackFaceSpacing * 0.5f;
+            const float kickbackThickness = 0.15f;
+            float kickbackX = kickbackHalfWidth + kickbackThickness * 0.5f;
+            Vector3 kickbackScale = new Vector3(kickbackThickness, RegulationBowlingDimensions.KickbackHeight, kickbackLength);
+            float kickbackZ = kickbackStart + kickbackLength * 0.5f;
+            CreateCube("Left Kickback", new Vector3(-kickbackX, RegulationBowlingDimensions.KickbackHeight * 0.5f, kickbackZ), kickbackScale, wallMaterial);
+            CreateCube("Right Kickback", new Vector3(kickbackX, RegulationBowlingDimensions.KickbackHeight * 0.5f, kickbackZ), kickbackScale, wallMaterial);
+
+            CreateCube(
+                "Pit Floor",
+                new Vector3(0f, -RegulationBowlingDimensions.PitFloorDepth - 0.1f, RegulationBowlingDimensions.LaneLength + RegulationBowlingDimensions.PitDepth * 0.5f),
+                new Vector3(RegulationBowlingDimensions.KickbackFaceSpacing, 0.2f, RegulationBowlingDimensions.PitDepth),
+                gutterMaterial);
+            CreateCube(
+                "Rear Cushion",
+                new Vector3(0f, RegulationBowlingDimensions.KickbackHeight * 0.5f, RegulationBowlingDimensions.LaneLength + RegulationBowlingDimensions.PitDepth),
+                new Vector3(RegulationBowlingDimensions.KickbackFaceSpacing + kickbackThickness * 2f, RegulationBowlingDimensions.KickbackHeight, 0.2f),
+                wallMaterial);
+        }
+
+        private static void CreateFlatGutter(string objectName, float side, Material material)
+        {
+            const float gutterThickness = 0.12f;
+            float surfaceSlope = Mathf.Atan2(
+                RegulationBowlingDimensions.GutterRearDepth - RegulationBowlingDimensions.GutterFrontDepth,
+                RegulationBowlingDimensions.LaneLength) * Mathf.Rad2Deg;
+            float averageDepth = (RegulationBowlingDimensions.GutterFrontDepth + RegulationBowlingDimensions.GutterRearDepth) * 0.5f;
+            GameObject gutter = CreateCube(
+                objectName,
+                new Vector3(
+                    side * (RegulationBowlingDimensions.LaneWidth + RegulationBowlingDimensions.GutterWidth) * 0.5f,
+                    -averageDepth - gutterThickness * 0.5f,
+                    RegulationBowlingDimensions.LaneLength * 0.5f),
+                new Vector3(RegulationBowlingDimensions.GutterWidth, gutterThickness, RegulationBowlingDimensions.LaneLength),
+                material);
+            gutter.transform.rotation = Quaternion.Euler(surfaceSlope, 0f, 0f);
+        }
+
         private static Rigidbody CreateBall(Material material)
         {
             GameObject ball = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             ball.name = "Ball";
-            ball.transform.position = new Vector3(0f, 0.5f, -4.5f);
+            ball.transform.position = new Vector3(0f, RegulationBowlingDimensions.BallRadius, RegulationBowlingDimensions.BallStartZ);
             ball.transform.localScale = Vector3.one;
             ball.GetComponent<Renderer>().sharedMaterial = material;
             Rigidbody body = ball.AddComponent<Rigidbody>();
-            body.mass = 6f;
+            body.mass = RegulationBowlingDimensions.BallMass;
             body.linearDamping = 0f;
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             return body;
@@ -89,28 +158,25 @@ namespace MiniBowling.Editor
         {
             BowlingPin[] pins = new BowlingPin[10];
             int index = 0;
-            // Model units use a ball diameter of 1. A regulation pin is 15 in tall and at most
-            // 4.797 in wide, while adjacent pin centers are 12 in apart (ball diameter: 8.5 in).
-            const float pinHeight = 1.765f;
-            const float pinDiameter = 0.564f;
-            const float pinSpacing = 1.412f;
-            const float rowDepth = 1.223f;
             for (int row = 0; row < 4; row++)
             {
                 for (int column = 0; column <= row; column++)
                 {
-                    float x = (column - row * 0.5f) * pinSpacing;
-                    float z = 16f + row * rowDepth;
+                    float x = (column - row * 0.5f) * RegulationBowlingDimensions.PinCenterSpacing;
+                    float z = RegulationBowlingDimensions.FoulLineToHeadPin + row * RegulationBowlingDimensions.PinRowDepth;
                     GameObject pin = GameObject.CreatePrimitive(PrimitiveType.Capsule);
                     pin.name = $"Pin {index + 1}";
-                    pin.transform.position = new Vector3(x, pinHeight * 0.5f, z);
-                    pin.transform.localScale = new Vector3(pinDiameter, pinHeight * 0.5f, pinDiameter);
+                    pin.transform.position = new Vector3(x, RegulationBowlingDimensions.PinHeight * 0.5f, z);
+                    pin.transform.localScale = new Vector3(
+                        RegulationBowlingDimensions.PinMaximumDiameter,
+                        RegulationBowlingDimensions.PinHeight * 0.5f,
+                        RegulationBowlingDimensions.PinMaximumDiameter);
                     pin.GetComponent<Renderer>().sharedMaterial = pinMaterial;
                     Rigidbody body = pin.AddComponent<Rigidbody>();
-                    body.mass = 1.31f;
+                    body.mass = RegulationBowlingDimensions.PinWeight;
                     body.linearDamping = 0.16f;
                     body.angularDamping = 0.24f;
-                    body.centerOfMass = new Vector3(0f, -0.22f, 0f);
+                    body.centerOfMass = new Vector3(0f, RegulationBowlingDimensions.PinCenterOfMassLocalY, 0f);
                     BowlingPin bowlingPin = pin.AddComponent<BowlingPin>();
                     pins[index++] = bowlingPin;
 
