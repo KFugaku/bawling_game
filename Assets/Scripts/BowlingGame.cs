@@ -7,11 +7,11 @@ public class BowlingGame : MonoBehaviour
     [SerializeField] private BowlingPin[] pins;
     [SerializeField] private float throwPower = RegulationBowlingDimensions.ThrowSpeed;
     [Header("Mouse Throw")]
-    [SerializeField] private float maximumGestureDistance = 520f;
-    [SerializeField] private float minimumThrowPower = 16f;
     [SerializeField] private float heldBallHeight = 2.2f;
-    [SerializeField] private float deliveryDuration = 1.35f;
-    [SerializeField] private float maximumThrowAngle = 35f;
+    [SerializeField] private float mouseMovementSensitivity = 0.16f;
+    [SerializeField] private float releaseSpeedMultiplier = 2.2f;
+    [SerializeField] private float minimumThrowPower = 8f;
+    [SerializeField] private float velocitySmoothing = 18f;
 
     private readonly Vector3 ballStart = new Vector3(
         0f,
@@ -23,9 +23,8 @@ public class BowlingGame : MonoBehaviour
     private bool holdingBall;
     private bool aimingThrow;
     private float throwTime;
-    private float deliveryStartTime;
     private int score;
-    private Vector2 gestureStart;
+    private Vector3 deliveryVelocity;
     private LineRenderer aimGuide;
 
     private const float ReleaseLineZ = 0f;
@@ -140,30 +139,59 @@ public class BowlingGame : MonoBehaviour
     private void BeginDelivery()
     {
         aimingThrow = true;
-        gestureStart = Input.mousePosition;
-        deliveryStartTime = Time.time;
+        deliveryVelocity = Vector3.zero;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
         SetAimGuideVisible(true);
     }
 
     private void UpdateDelivery()
     {
-        float progress = GetDeliveryProgress();
-        float easedProgress = Mathf.SmoothStep(0f, 1f, progress);
-        ball.position = new Vector3(
-            ballStart.x,
-            Mathf.Lerp(heldBallHeight, RegulationBowlingDimensions.BallRadius, easedProgress),
-            Mathf.Lerp(ballStart.z, ReleaseLineZ, easedProgress));
+        Vector2 mouseMovement = new Vector2(
+            Input.GetAxisRaw("Mouse X"),
+            Input.GetAxisRaw("Mouse Y"));
+
+        Vector3 previousPosition = ball.position;
+        float nextX = Mathf.Clamp(
+            previousPosition.x + mouseMovement.x * mouseMovementSensitivity,
+            -RegulationBowlingDimensions.AimLimit,
+            RegulationBowlingDimensions.AimLimit);
+        float nextZ = Mathf.Clamp(
+            previousPosition.z + mouseMovement.y * mouseMovementSensitivity,
+            ballStart.z,
+            ReleaseLineZ);
+
+        // Height above the lane is proportional to the square of the remaining
+        // distance. Its slope therefore reaches zero exactly at the release line.
+        float remainingDistanceRatio = Mathf.Clamp01(
+            (ReleaseLineZ - nextZ) / (ReleaseLineZ - ballStart.z));
+        float heightAboveLane = (heldBallHeight - RegulationBowlingDimensions.BallRadius)
+            * remainingDistanceRatio * remainingDistanceRatio;
+        Vector3 nextPosition = new Vector3(
+            nextX,
+            RegulationBowlingDimensions.BallRadius + heightAboveLane,
+            nextZ);
+        ball.position = nextPosition;
+
+        Vector3 frameVelocity = (nextPosition - previousPosition) / Mathf.Max(Time.deltaTime, 0.001f);
+        frameVelocity.y = 0f;
+        if (frameVelocity.sqrMagnitude > 0.0001f)
+        {
+            float smoothing = 1f - Mathf.Exp(-velocitySmoothing * Time.deltaTime);
+            deliveryVelocity = Vector3.Lerp(deliveryVelocity, frameVelocity, smoothing);
+        }
     }
 
     private void ReleaseGestureThrow()
     {
-        ThrowBall(GetGestureDirection(), GetGestureThrowPower());
+        ThrowBall(GetReleaseDirection(), GetReleaseSpeed());
     }
 
     private void ThrowBall(Vector3 direction, float power)
     {
         holdingBall = false;
         aimingThrow = false;
+        UnlockCursor();
         SetAimGuideVisible(false);
         thrown = true;
         throwTime = Time.time;
@@ -176,50 +204,57 @@ public class BowlingGame : MonoBehaviour
     {
         holdingBall = false;
         aimingThrow = false;
+        UnlockCursor();
         SetAimGuideVisible(false);
         ball.isKinematic = false;
         ball.linearVelocity = Vector3.zero;
         ball.angularVelocity = Vector3.zero;
     }
 
-    private Vector2 GetGesture()
+    private float GetReleasePowerPercent()
     {
-        Vector2 gesture = (Vector2)Input.mousePosition - gestureStart;
-        return new Vector2(gesture.x, Mathf.Max(0f, gesture.y));
+        return Mathf.InverseLerp(minimumThrowPower, throwPower, GetReleaseSpeed());
     }
 
-    private float GetGestureThrowPower()
+    private Vector3 GetReleaseDirection()
     {
-        float gestureAmount = Mathf.Clamp01(GetGesture().magnitude / maximumGestureDistance);
-        return Mathf.Lerp(minimumThrowPower, throwPower, gestureAmount);
-    }
-
-    private float GetGesturePowerPercent()
-    {
-        return Mathf.InverseLerp(minimumThrowPower, throwPower, GetGestureThrowPower());
-    }
-
-    private Vector3 GetGestureDirection()
-    {
-        Vector2 gesture = GetGesture();
-        if (gesture.sqrMagnitude < 1f)
+        Vector3 forwardVelocity = new Vector3(
+            deliveryVelocity.x,
+            0f,
+            Mathf.Max(0f, deliveryVelocity.z));
+        if (forwardVelocity.sqrMagnitude < 0.0001f)
         {
             return Vector3.forward;
         }
 
-        float rawAngle = Mathf.Atan2(gesture.x, Mathf.Max(1f, gesture.y)) * Mathf.Rad2Deg;
-        float clampedAngle = Mathf.Clamp(rawAngle, -maximumThrowAngle, maximumThrowAngle);
-        return Quaternion.Euler(0f, clampedAngle, 0f) * Vector3.forward;
+        return forwardVelocity.normalized;
+    }
+
+    private float GetReleaseSpeed()
+    {
+        Vector3 forwardVelocity = new Vector3(
+            deliveryVelocity.x,
+            0f,
+            Mathf.Max(0f, deliveryVelocity.z));
+        return Mathf.Clamp(
+            forwardVelocity.magnitude * releaseSpeedMultiplier,
+            minimumThrowPower,
+            throwPower);
     }
 
     private float GetThrowAngle()
     {
-        return Vector3.SignedAngle(Vector3.forward, GetGestureDirection(), Vector3.up);
+        return Vector3.SignedAngle(Vector3.forward, GetReleaseDirection(), Vector3.up);
     }
 
     private float GetDeliveryProgress()
     {
-        return Mathf.Clamp01((Time.time - deliveryStartTime) / Mathf.Max(0.1f, deliveryDuration));
+        if (ball == null)
+        {
+            return 0f;
+        }
+
+        return Mathf.InverseLerp(ballStart.z, ReleaseLineZ, ball.position.z);
     }
 
     private void CreateReleaseLine()
@@ -274,9 +309,9 @@ public class BowlingGame : MonoBehaviour
         }
 
         Vector3 start = ball.position + Vector3.up * 0.06f;
-        float guideLength = Mathf.Lerp(3f, 8f, GetGesturePowerPercent());
+        float guideLength = Mathf.Lerp(3f, 8f, GetReleasePowerPercent());
         aimGuide.SetPosition(0, start);
-        aimGuide.SetPosition(1, start + GetGestureDirection() * guideLength);
+        aimGuide.SetPosition(1, start + GetReleaseDirection() * guideLength);
     }
 
     private void SetAimGuideVisible(bool isVisible)
@@ -285,6 +320,17 @@ public class BowlingGame : MonoBehaviour
         {
             aimGuide.enabled = isVisible;
         }
+    }
+
+    private void UnlockCursor()
+    {
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
+
+    private void OnDisable()
+    {
+        UnlockCursor();
     }
 
     private int CountFallenPins()
@@ -313,6 +359,8 @@ public class BowlingGame : MonoBehaviour
         roundScored = false;
         holdingBall = false;
         aimingThrow = false;
+        deliveryVelocity = Vector3.zero;
+        UnlockCursor();
         SetAimGuideVisible(false);
         score = 0;
 
@@ -422,7 +470,7 @@ public class BowlingGame : MonoBehaviour
         };
 
         GUI.Label(new Rect(24, 22, 500, 40), "Mini Bowling", titleStyle);
-        GUI.Label(new Rect(25, 66, 920, 30), "右クリックで持ち上げる → Spaceで助走 → マウスで方向を決めて右クリックを離す", textStyle);
+        GUI.Label(new Rect(25, 66, 1000, 30), "右クリックで持ち上げる → Spaceで構える → マウス移動で運び、右クリックを離す", textStyle);
 
         int pinCount = pins?.Length ?? 0;
         string result = roundScored
@@ -432,7 +480,7 @@ public class BowlingGame : MonoBehaviour
 
         if (aimingThrow)
         {
-            float powerPercent = GetGesturePowerPercent();
+            float powerPercent = GetReleasePowerPercent();
             float angle = GetThrowAngle();
             string directionText = Mathf.Abs(angle) < 0.5f
                 ? "正面 0°"
