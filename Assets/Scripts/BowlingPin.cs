@@ -44,8 +44,23 @@ public sealed class BowlingPin : MonoBehaviour
         }
 
         body = GetComponent<Rigidbody>();
+        ConfigurePhysics();
         startPosition = transform.position;
         startRotation = transform.rotation;
         initialized = true;
+    }
+
+    private void ConfigurePhysics()
+    {
+        if (body == null)
+        {
+            return;
+        }
+
+        // A 16 lb ball versus a 3.5 lb pin, with the USBC target center of mass.
+        body.mass = RegulationBowlingDimensions.PinWeight;
+        body.linearDamping = 0.16f;
+        body.angularDamping = 0.24f;
+        body.centerOfMass = new Vector3(0f, RegulationBowlingDimensions.PinCenterOfMassLocalY, 0f);
     }
 }

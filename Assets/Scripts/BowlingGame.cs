@@ -6,9 +6,12 @@ public class BowlingGame : MonoBehaviour
     [SerializeField] private Rigidbody ball;
     [SerializeField] private BowlingPin[] pins;
     [SerializeField] private float aimSpeed = 4f;
-    [SerializeField] private float throwPower = 18f;
+    [SerializeField] private float throwPower = RegulationBowlingDimensions.ThrowSpeed;
 
-    private readonly Vector3 ballStart = new Vector3(0f, 0.5f, -4.5f);
+    private readonly Vector3 ballStart = new Vector3(
+        0f,
+        RegulationBowlingDimensions.BallRadius,
+        RegulationBowlingDimensions.BallStartZ);
     private bool thrown;
     private bool roundScored;
     private float throwTime;
@@ -18,13 +21,13 @@ public class BowlingGame : MonoBehaviour
     {
         ResolveSceneReferences();
 
-        // Keep the release point fully inside the Game view on every machine.
+        // Keep both the release point and the regulation pin deck inside the Game view.
         Camera gameCamera = Camera.main;
         if (gameCamera != null)
         {
-            gameCamera.transform.position = new Vector3(0f, 3.6f, -12.5f);
-            gameCamera.transform.LookAt(new Vector3(0f, 0.45f, 8f));
-            gameCamera.fieldOfView = 60f;
+            gameCamera.transform.position = new Vector3(0f, 20f, -40f);
+            gameCamera.transform.LookAt(new Vector3(0f, 0.5f, 35f));
+            gameCamera.fieldOfView = 52f;
         }
     }
 
@@ -50,7 +53,7 @@ public class BowlingGame : MonoBehaviour
         {
             float movement = Input.GetAxisRaw("Horizontal") * aimSpeed * Time.deltaTime;
             Vector3 nextPosition = ball.position + new Vector3(movement, 0f, 0f);
-            nextPosition.x = Mathf.Clamp(nextPosition.x, -1.8f, 1.8f);
+            nextPosition.x = Mathf.Clamp(nextPosition.x, -RegulationBowlingDimensions.AimLimit, RegulationBowlingDimensions.AimLimit);
             ball.MovePosition(nextPosition);
 
             if (Input.GetKeyDown(KeyCode.Space))
@@ -63,7 +66,7 @@ public class BowlingGame : MonoBehaviour
             }
         }
 
-        if (thrown && !roundScored && Time.time - throwTime > 3f)
+        if (thrown && !roundScored && Time.time - throwTime > 4f)
         {
             score = CountFallenPins();
             roundScored = true;
