@@ -15,7 +15,7 @@ public class BowlingGame : MonoBehaviour
     [SerializeField] private float slowMouseSpeed = 2f;
     [SerializeField] private float fastMouseSpeed = 30f;
     [SerializeField] private float mouseSpeedExponent = 2f;
-    [SerializeField] private float mouseSpeedFalloff = 8f;
+    [SerializeField] private float mouseSpeedAveraging = 7f;
     [SerializeField] private float velocitySmoothing = 18f;
 
     private readonly Vector3 ballStart = new Vector3(
@@ -29,7 +29,6 @@ public class BowlingGame : MonoBehaviour
     private bool aimingThrow;
     private float throwTime;
     private float deliveryMouseSpeed;
-    private float lastMouseMovementTime;
     private int mouseInputWarmupFrames;
     private int score;
     private Vector3 deliveryVelocity;
@@ -138,7 +137,6 @@ public class BowlingGame : MonoBehaviour
         aimingThrow = true;
         deliveryVelocity = Vector3.zero;
         deliveryMouseSpeed = 0f;
-        lastMouseMovementTime = Time.time;
         mouseInputWarmupFrames = 2;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
@@ -191,28 +189,12 @@ public class BowlingGame : MonoBehaviour
 
     private void UpdateMouseSpeed(Vector2 mouseMovement)
     {
-        float instantMouseSpeed = mouseMovement.magnitude / Mathf.Max(Time.deltaTime, 0.001f);
-        if (instantMouseSpeed > 0.01f)
-        {
-            // Fast flicks should respond immediately. Slower changes are blended so
-            // a tiny one-frame wobble does not make the power display jump around.
-            if (instantMouseSpeed > deliveryMouseSpeed)
-            {
-                deliveryMouseSpeed = instantMouseSpeed;
-            }
-            else
-            {
-                float smoothing = 1f - Mathf.Exp(-velocitySmoothing * Time.deltaTime);
-                deliveryMouseSpeed = Mathf.Lerp(deliveryMouseSpeed, instantMouseSpeed, smoothing);
-            }
-
-            lastMouseMovementTime = Time.time;
-        }
-        else if (Time.time - lastMouseMovementTime > 0.08f)
-        {
-            float falloff = 1f - Mathf.Exp(-mouseSpeedFalloff * Time.deltaTime);
-            deliveryMouseSpeed = Mathf.Lerp(deliveryMouseSpeed, 0f, falloff);
-        }
+        // Only forward mouse motion builds approach speed. An exponential moving
+        // average prevents a single-frame flick from becoming a maximum-power throw.
+        float instantForwardSpeed = Mathf.Max(0f, mouseMovement.y)
+            / Mathf.Max(Time.deltaTime, 0.001f);
+        float averaging = 1f - Mathf.Exp(-mouseSpeedAveraging * Time.deltaTime);
+        deliveryMouseSpeed = Mathf.Lerp(deliveryMouseSpeed, instantForwardSpeed, averaging);
     }
 
     private void ReleaseGestureThrow()
@@ -256,7 +238,16 @@ public class BowlingGame : MonoBehaviour
             fastMouseSpeed,
             deliveryMouseSpeed);
         float acceleratedMouseSpeed = Mathf.Pow(normalizedMouseSpeed, mouseSpeedExponent);
-        return Mathf.Lerp(minimumThrowPower, throwPower, acceleratedMouseSpeed);
+        float inputSpeed = Mathf.Lerp(minimumThrowPower, throwPower, acceleratedMouseSpeed);
+
+        // The approach unlocks speed quadratically. Releasing halfway down the
+        // approach can therefore use only 25% of the available speed range.
+        float progress = GetDeliveryProgress();
+        float approachLimit = Mathf.Lerp(
+            minimumThrowPower,
+            throwPower,
+            progress * progress);
+        return Mathf.Min(inputSpeed, approachLimit);
     }
 
     private Vector3 GetAdjustedReleaseVelocity()
