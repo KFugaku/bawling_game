@@ -43,5 +43,7 @@ public static class RegulationBowlingDimensions
     public const float PlayerCameraZ = -23f;
     public const float PlayerCameraTargetHeight = 1.2f;
     public const float PlayerCameraTargetZ = 45f;
-    public const float PlayerCameraFieldOfView = 48f;
+    // 44 degrees gives the same practical framing as a 1.1x Game-view zoom,
+    // making the pin rack easier to read without changing the play area.
+    public const float PlayerCameraFieldOfView = 44f;
 }
