@@ -11,6 +11,7 @@ public class BowlingGame : MonoBehaviour
     [SerializeField] private float forwardMouseSensitivity = 0.16f;
     [SerializeField] private float horizontalMouseSensitivity = 0.04f;
     [SerializeField] private float horizontalDirectionScale = 0.3f;
+    [SerializeField] private float throwSpeedBoost = 1.15f;
     [SerializeField] private float minimumThrowPower = 1.5f;
     [SerializeField] private float slowMouseSpeed = 2f;
     [SerializeField] private float fastMouseSpeed = 30f;
@@ -217,7 +218,10 @@ public class BowlingGame : MonoBehaviour
 
     private float GetReleasePowerPercent()
     {
-        return Mathf.InverseLerp(minimumThrowPower, throwPower, GetReleaseSpeed());
+        return Mathf.InverseLerp(
+            minimumThrowPower,
+            throwPower * throwSpeedBoost,
+            GetReleaseSpeed());
     }
 
     private Vector3 GetReleaseDirection()
@@ -233,19 +237,20 @@ public class BowlingGame : MonoBehaviour
 
     private float GetReleaseSpeed()
     {
+        float maximumReleaseSpeed = throwPower * throwSpeedBoost;
         float normalizedMouseSpeed = Mathf.InverseLerp(
             slowMouseSpeed,
             fastMouseSpeed,
             deliveryMouseSpeed);
         float acceleratedMouseSpeed = Mathf.Pow(normalizedMouseSpeed, mouseSpeedExponent);
-        float inputSpeed = Mathf.Lerp(minimumThrowPower, throwPower, acceleratedMouseSpeed);
+        float inputSpeed = Mathf.Lerp(minimumThrowPower, maximumReleaseSpeed, acceleratedMouseSpeed);
 
         // The approach unlocks speed quadratically. Releasing halfway down the
         // approach can therefore use only 25% of the available speed range.
         float progress = GetDeliveryProgress();
         float approachLimit = Mathf.Lerp(
             minimumThrowPower,
-            throwPower,
+            maximumReleaseSpeed,
             progress * progress);
         return Mathf.Min(inputSpeed, approachLimit);
     }
