@@ -8,7 +8,9 @@ public class BowlingGame : MonoBehaviour
     [SerializeField] private float throwPower = RegulationBowlingDimensions.ThrowSpeed;
     [Header("Mouse Throw")]
     [SerializeField] private float heldBallHeight = 2.2f;
-    [SerializeField] private float mouseMovementSensitivity = 0.16f;
+    [SerializeField] private float forwardMouseSensitivity = 0.16f;
+    [SerializeField] private float horizontalMouseSensitivity = 0.05f;
+    [SerializeField] private float horizontalDirectionScale = 0.4f;
     [SerializeField] private float releaseSpeedMultiplier = 2.2f;
     [SerializeField] private float minimumThrowPower = 8f;
     [SerializeField] private float velocitySmoothing = 18f;
@@ -153,11 +155,11 @@ public class BowlingGame : MonoBehaviour
 
         Vector3 previousPosition = ball.position;
         float nextX = Mathf.Clamp(
-            previousPosition.x + mouseMovement.x * mouseMovementSensitivity,
+            previousPosition.x + mouseMovement.x * horizontalMouseSensitivity,
             -RegulationBowlingDimensions.AimLimit,
             RegulationBowlingDimensions.AimLimit);
         float nextZ = Mathf.Clamp(
-            previousPosition.z + mouseMovement.y * mouseMovementSensitivity,
+            previousPosition.z + mouseMovement.y * forwardMouseSensitivity,
             ballStart.z,
             ReleaseLineZ);
 
@@ -218,10 +220,7 @@ public class BowlingGame : MonoBehaviour
 
     private Vector3 GetReleaseDirection()
     {
-        Vector3 forwardVelocity = new Vector3(
-            deliveryVelocity.x,
-            0f,
-            Mathf.Max(0f, deliveryVelocity.z));
+        Vector3 forwardVelocity = GetAdjustedReleaseVelocity();
         if (forwardVelocity.sqrMagnitude < 0.0001f)
         {
             return Vector3.forward;
@@ -232,14 +231,18 @@ public class BowlingGame : MonoBehaviour
 
     private float GetReleaseSpeed()
     {
-        Vector3 forwardVelocity = new Vector3(
-            deliveryVelocity.x,
-            0f,
-            Mathf.Max(0f, deliveryVelocity.z));
         return Mathf.Clamp(
-            forwardVelocity.magnitude * releaseSpeedMultiplier,
+            GetAdjustedReleaseVelocity().magnitude * releaseSpeedMultiplier,
             minimumThrowPower,
             throwPower);
+    }
+
+    private Vector3 GetAdjustedReleaseVelocity()
+    {
+        return new Vector3(
+            deliveryVelocity.x * horizontalDirectionScale,
+            0f,
+            Mathf.Max(0f, deliveryVelocity.z));
     }
 
     private float GetThrowAngle()
