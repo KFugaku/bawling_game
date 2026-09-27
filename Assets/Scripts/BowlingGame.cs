@@ -21,13 +21,19 @@ public class BowlingGame : MonoBehaviour
     {
         ResolveSceneReferences();
 
-        // Keep both the release point and the regulation pin deck inside the Game view.
+        // Use a low, behind-the-ball view so players can read the lane and aim their throw.
         Camera gameCamera = Camera.main;
         if (gameCamera != null)
         {
-            gameCamera.transform.position = new Vector3(0f, 20f, -40f);
-            gameCamera.transform.LookAt(new Vector3(0f, 0.5f, 35f));
-            gameCamera.fieldOfView = 52f;
+            gameCamera.transform.position = new Vector3(
+                0f,
+                RegulationBowlingDimensions.PlayerCameraHeight,
+                RegulationBowlingDimensions.PlayerCameraZ);
+            gameCamera.transform.LookAt(new Vector3(
+                0f,
+                RegulationBowlingDimensions.PlayerCameraTargetHeight,
+                RegulationBowlingDimensions.PlayerCameraTargetZ));
+            gameCamera.fieldOfView = RegulationBowlingDimensions.PlayerCameraFieldOfView;
         }
     }
 

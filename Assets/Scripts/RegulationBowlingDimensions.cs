@@ -36,4 +36,12 @@ public static class RegulationBowlingDimensions
     public const float BallStartZ = -9f;
     public const float ThrowSpeed = 38f;
     public const float AimLimit = LaneWidth * 0.5f - BallRadius;
+
+    // A low view from behind the ball keeps the full regulation lane readable
+    // while still framing the ball at release and the ten-pin rack.
+    public const float PlayerCameraHeight = 4.5f;
+    public const float PlayerCameraZ = -23f;
+    public const float PlayerCameraTargetHeight = 1.2f;
+    public const float PlayerCameraTargetZ = 45f;
+    public const float PlayerCameraFieldOfView = 48f;
 }
