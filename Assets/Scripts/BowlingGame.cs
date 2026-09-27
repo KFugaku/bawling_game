@@ -11,8 +11,8 @@ public class BowlingGame : MonoBehaviour
     [SerializeField] private float forwardMouseSensitivity = 0.16f;
     [SerializeField] private float horizontalMouseSensitivity = 0.04f;
     [SerializeField] private float horizontalDirectionScale = 0.3f;
-    [SerializeField] private float releaseSpeedMultiplier = 2.2f;
-    [SerializeField] private float minimumThrowPower = 8f;
+    [SerializeField] private float releaseSpeedMultiplier = 2.8f;
+    [SerializeField] private float minimumThrowPower = 10f;
     [SerializeField] private float velocitySmoothing = 18f;
 
     private readonly Vector3 ballStart = new Vector3(
