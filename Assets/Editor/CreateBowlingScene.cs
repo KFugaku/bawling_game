@@ -102,8 +102,7 @@ namespace MiniBowling.Editor
                 wallMaterial);
             Object.DestroyImmediate(foulLine.GetComponent<Collider>());
 
-            CreateFlatGutter("Left Gutter", -1f, gutterMaterial);
-            CreateFlatGutter("Right Gutter", 1f, gutterMaterial);
+            BowlingAlleyEnvironment.CreateSceneGeometry(gutterMaterial, wallMaterial);
 
             float kickbackStart = RegulationBowlingDimensions.FoulLineToHeadPin - 15f / RegulationBowlingDimensions.InchesPerUnit;
             float kickbackEnd = RegulationBowlingDimensions.LaneLength + RegulationBowlingDimensions.PitDepth;
@@ -126,24 +125,6 @@ namespace MiniBowling.Editor
                 new Vector3(0f, RegulationBowlingDimensions.KickbackHeight * 0.5f, RegulationBowlingDimensions.LaneLength + RegulationBowlingDimensions.PitDepth),
                 new Vector3(RegulationBowlingDimensions.KickbackFaceSpacing + kickbackThickness * 2f, RegulationBowlingDimensions.KickbackHeight, 0.2f),
                 wallMaterial);
-        }
-
-        private static void CreateFlatGutter(string objectName, float side, Material material)
-        {
-            const float gutterThickness = 0.12f;
-            float surfaceSlope = Mathf.Atan2(
-                RegulationBowlingDimensions.GutterRearDepth - RegulationBowlingDimensions.GutterFrontDepth,
-                RegulationBowlingDimensions.LaneLength) * Mathf.Rad2Deg;
-            float averageDepth = (RegulationBowlingDimensions.GutterFrontDepth + RegulationBowlingDimensions.GutterRearDepth) * 0.5f;
-            GameObject gutter = CreateCube(
-                objectName,
-                new Vector3(
-                    side * (RegulationBowlingDimensions.LaneWidth + RegulationBowlingDimensions.GutterWidth) * 0.5f,
-                    -averageDepth - gutterThickness * 0.5f,
-                    RegulationBowlingDimensions.LaneLength * 0.5f),
-                new Vector3(RegulationBowlingDimensions.GutterWidth, gutterThickness, RegulationBowlingDimensions.LaneLength),
-                material);
-            gutter.transform.rotation = Quaternion.Euler(surfaceSlope, 0f, 0f);
         }
 
         private static Rigidbody CreateBall(Material material)

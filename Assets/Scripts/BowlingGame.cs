@@ -20,6 +20,7 @@ public class BowlingGame : MonoBehaviour
 
     private void Awake()
     {
+        BowlingAlleyEnvironment.EnsureCreated();
         ResolveSceneReferences();
 
         // Use a low, behind-the-ball view so players can read the lane and aim their throw.
