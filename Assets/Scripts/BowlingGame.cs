@@ -13,12 +13,14 @@ public class BowlingGame : MonoBehaviour
         RegulationBowlingDimensions.BallRadius,
         RegulationBowlingDimensions.BallStartZ);
     private bool thrown;
+    private bool ballInGutter;
     private bool roundScored;
     private float throwTime;
     private int score;
 
     private void Awake()
     {
+        BowlingAlleyEnvironment.EnsureCreated();
         ResolveSceneReferences();
 
         // Use a low, behind-the-ball view so players can read the lane and aim their throw.
@@ -72,9 +74,14 @@ public class BowlingGame : MonoBehaviour
             }
         }
 
+        if (thrown && !ballInGutter && Mathf.Abs(ball.position.x) > RegulationBowlingDimensions.GutterEntryX)
+        {
+            ballInGutter = true;
+        }
+
         if (thrown && !roundScored && Time.time - throwTime > 4f)
         {
-            score = CountFallenPins();
+            score = ballInGutter ? 0 : CountFallenPins();
             roundScored = true;
         }
 
@@ -102,6 +109,7 @@ public class BowlingGame : MonoBehaviour
     private void ResetRound()
     {
         thrown = false;
+        ballInGutter = false;
         roundScored = false;
         score = 0;
 
@@ -208,7 +216,9 @@ public class BowlingGame : MonoBehaviour
         GUI.Label(new Rect(25, 66, 600, 30), "← → で狙う　Space で投球　R でやり直し", textStyle);
 
         int pinCount = pins?.Length ?? 0;
-        string result = roundScored ? $"倒したピン: {score} / {pinCount}" : "狙いを定めて投げよう";
+        string result = roundScored
+            ? (ballInGutter ? "ガター：倒したピン 0 / " + pinCount : $"倒したピン: {score} / {pinCount}")
+            : ballInGutter ? "ガター！ ピンは倒せません" : "狙いを定めて投げよう";
         GUI.Label(new Rect(25, 96, 500, 30), result, textStyle);
 
         if (GUI.Button(new Rect(25, 134, 130, 36), "リセット (R)"))

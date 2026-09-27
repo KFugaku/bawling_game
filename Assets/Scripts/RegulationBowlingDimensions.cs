@@ -35,7 +35,10 @@ public static class RegulationBowlingDimensions
 
     public const float BallStartZ = -9f;
     public const float ThrowSpeed = 38f;
-    public const float AimLimit = LaneWidth * 0.5f - BallRadius;
+    public const float GutterAimSafetyMargin = 0.03f;
+    // The ball only has a narrow, regulation-width path inside a gutter.
+    public const float AimLimit = LaneWidth * 0.5f + GutterWidth - BallRadius - GutterAimSafetyMargin;
+    public const float GutterEntryX = LaneWidth * 0.5f;
 
     // A low view from behind the ball keeps the full regulation lane readable
     // while still framing the ball at release and the ten-pin rack.
