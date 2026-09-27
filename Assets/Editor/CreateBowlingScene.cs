@@ -55,10 +55,16 @@ namespace MiniBowling.Editor
             GameObject cameraObject = new GameObject("Main Camera");
             Camera camera = cameraObject.AddComponent<Camera>();
             cameraObject.tag = "MainCamera";
-            cameraObject.transform.position = new Vector3(0f, 20f, -40f);
-            cameraObject.transform.LookAt(new Vector3(0f, 0.5f, 35f));
+            cameraObject.transform.position = new Vector3(
+                0f,
+                RegulationBowlingDimensions.PlayerCameraHeight,
+                RegulationBowlingDimensions.PlayerCameraZ);
+            cameraObject.transform.LookAt(new Vector3(
+                0f,
+                RegulationBowlingDimensions.PlayerCameraTargetHeight,
+                RegulationBowlingDimensions.PlayerCameraTargetZ));
             camera.backgroundColor = new Color(0.06f, 0.08f, 0.13f);
-            camera.fieldOfView = 52f;
+            camera.fieldOfView = RegulationBowlingDimensions.PlayerCameraFieldOfView;
         }
 
         private static void CreateLight()
