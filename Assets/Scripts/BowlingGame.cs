@@ -9,8 +9,8 @@ public class BowlingGame : MonoBehaviour
     [Header("Mouse Throw")]
     [SerializeField] private float heldBallHeight = 2.2f;
     [SerializeField] private float forwardMouseSensitivity = 0.16f;
-    [SerializeField] private float horizontalMouseSensitivity = 0.05f;
-    [SerializeField] private float horizontalDirectionScale = 0.4f;
+    [SerializeField] private float horizontalMouseSensitivity = 0.04f;
+    [SerializeField] private float horizontalDirectionScale = 0.3f;
     [SerializeField] private float releaseSpeedMultiplier = 2.2f;
     [SerializeField] private float minimumThrowPower = 8f;
     [SerializeField] private float velocitySmoothing = 18f;
