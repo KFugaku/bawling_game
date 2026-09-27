@@ -11,10 +11,10 @@ public class BowlingGame : MonoBehaviour
     [SerializeField] private float forwardMouseSensitivity = 0.16f;
     [SerializeField] private float horizontalMouseSensitivity = 0.04f;
     [SerializeField] private float horizontalDirectionScale = 0.3f;
-    [SerializeField] private float minimumThrowPower = 6f;
+    [SerializeField] private float minimumThrowPower = 1.5f;
     [SerializeField] private float slowMouseSpeed = 2f;
-    [SerializeField] private float fastMouseSpeed = 45f;
-    [SerializeField] private float mouseSpeedExponent = 1.4f;
+    [SerializeField] private float fastMouseSpeed = 30f;
+    [SerializeField] private float mouseSpeedExponent = 2f;
     [SerializeField] private float mouseSpeedFalloff = 8f;
     [SerializeField] private float velocitySmoothing = 18f;
 
@@ -30,6 +30,7 @@ public class BowlingGame : MonoBehaviour
     private float throwTime;
     private float deliveryMouseSpeed;
     private float lastMouseMovementTime;
+    private int mouseInputWarmupFrames;
     private int score;
     private Vector3 deliveryVelocity;
     private LineRenderer aimGuide;
@@ -138,6 +139,7 @@ public class BowlingGame : MonoBehaviour
         deliveryVelocity = Vector3.zero;
         deliveryMouseSpeed = 0f;
         lastMouseMovementTime = Time.time;
+        mouseInputWarmupFrames = 2;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
         SetAimGuideVisible(true);
@@ -148,6 +150,12 @@ public class BowlingGame : MonoBehaviour
         Vector2 mouseMovement = new Vector2(
             Input.GetAxisRaw("Mouse X"),
             Input.GetAxisRaw("Mouse Y"));
+        if (mouseInputWarmupFrames > 0)
+        {
+            mouseInputWarmupFrames--;
+            mouseMovement = Vector2.zero;
+        }
+
         UpdateMouseSpeed(mouseMovement);
 
         Vector3 previousPosition = ball.position;
@@ -378,6 +386,7 @@ public class BowlingGame : MonoBehaviour
         aimingThrow = false;
         deliveryVelocity = Vector3.zero;
         deliveryMouseSpeed = 0f;
+        mouseInputWarmupFrames = 0;
         UnlockCursor();
         SetAimGuideVisible(false);
         score = 0;
