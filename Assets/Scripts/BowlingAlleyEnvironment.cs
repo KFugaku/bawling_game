@@ -8,7 +8,8 @@ public static class BowlingAlleyEnvironment
 {
     private const string RootName = "Alley Environment";
     private const float WallThickness = 0.18f;
-    private const float WallHeight = 4.6f;
+    // About three metres in this project's real-world scale, tall enough to keep the outside out of view.
+    private const float WallHeight = 14f;
     private const float GutterSurfaceThickness = 0.1f;
 
     public static void EnsureCreated()
@@ -80,10 +81,11 @@ public static class BowlingAlleyEnvironment
 
     private static void CreateBuilding(Material wallMaterial, Material floorMaterial, Transform parent)
     {
-        float gutterStartZ = RegulationBowlingDimensions.BallStartZ - RegulationBowlingDimensions.BallRadius;
+        // Start behind the camera so the player is already inside the alley when play begins.
+        float alleyStartZ = RegulationBowlingDimensions.PlayerCameraZ - 2f;
         float alleyEndZ = RegulationBowlingDimensions.LaneLength + RegulationBowlingDimensions.PitDepth + WallThickness;
-        float alleyLength = alleyEndZ - gutterStartZ;
-        float alleyCenterZ = gutterStartZ + alleyLength * 0.5f;
+        float alleyLength = alleyEndZ - alleyStartZ;
+        float alleyCenterZ = alleyStartZ + alleyLength * 0.5f;
         float halfInteriorWidth = RegulationBowlingDimensions.LaneWidth * 0.5f + RegulationBowlingDimensions.GutterWidth;
         float outerWallX = halfInteriorWidth + WallThickness * 0.5f;
 
@@ -95,6 +97,8 @@ public static class BowlingAlleyEnvironment
             new Vector3(WallThickness, WallHeight, alleyLength), wallMaterial, parent, Vector3.zero);
         CreateBox("Alley Back Wall", new Vector3(0f, WallHeight * 0.5f, alleyEndZ),
             new Vector3(halfInteriorWidth * 2f + WallThickness * 2f, WallHeight, WallThickness), wallMaterial, parent, Vector3.zero);
+        CreateBox("Alley Ceiling", new Vector3(0f, WallHeight, alleyCenterZ),
+            new Vector3(halfInteriorWidth * 2f + WallThickness * 2f, WallThickness, alleyLength), wallMaterial, parent, Vector3.zero);
     }
 
     private static void CreateBox(string objectName, Vector3 position, Vector3 scale, Material material, Transform parent, Vector3 rotation)
