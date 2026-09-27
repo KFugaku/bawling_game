@@ -5,13 +5,13 @@ public class BowlingGame : MonoBehaviour
 {
     [SerializeField] private Rigidbody ball;
     [SerializeField] private BowlingPin[] pins;
-    [SerializeField] private float aimSpeed = 4f;
     [SerializeField] private float throwPower = RegulationBowlingDimensions.ThrowSpeed;
     [Header("Mouse Throw")]
-    [SerializeField] private bool enableKeyboardDebug = true;
-    [SerializeField] private float minimumGestureForwardDistance = 40f;
     [SerializeField] private float maximumGestureDistance = 520f;
     [SerializeField] private float minimumThrowPower = 16f;
+    [SerializeField] private float heldBallHeight = 2.2f;
+    [SerializeField] private float deliveryDuration = 1.35f;
+    [SerializeField] private float maximumThrowAngle = 35f;
 
     private readonly Vector3 ballStart = new Vector3(
         0f,
@@ -23,13 +23,19 @@ public class BowlingGame : MonoBehaviour
     private bool holdingBall;
     private bool aimingThrow;
     private float throwTime;
+    private float deliveryStartTime;
     private int score;
     private Vector2 gestureStart;
+    private LineRenderer aimGuide;
+
+    private const float ReleaseLineZ = 0f;
 
     private void Awake()
     {
         BowlingAlleyEnvironment.EnsureCreated();
         ResolveSceneReferences();
+        CreateReleaseLine();
+        CreateAimGuide();
 
         // Use a low, behind-the-ball view so players can read the lane and aim their throw.
         Camera gameCamera = Camera.main;
@@ -68,11 +74,6 @@ public class BowlingGame : MonoBehaviour
         if (!thrown)
         {
             HandleMouseThrowInput();
-
-            if (enableKeyboardDebug && !holdingBall)
-            {
-                HandleKeyboardDebugInput();
-            }
         }
 
         if (thrown && !ballInGutter && Mathf.Abs(ball.position.x) > RegulationBowlingDimensions.GutterEntryX)
@@ -102,33 +103,25 @@ public class BowlingGame : MonoBehaviour
 
         if (!aimingThrow && Input.GetKeyDown(KeyCode.Space))
         {
-            aimingThrow = true;
-            gestureStart = Input.mousePosition;
+            BeginDelivery();
+        }
+
+        if (aimingThrow)
+        {
+            UpdateDelivery();
+            UpdateAimGuide();
         }
 
         if (Input.GetMouseButtonUp(1))
         {
-            if (aimingThrow && GetGesture().y >= minimumGestureForwardDistance)
+            if (aimingThrow)
             {
                 ReleaseGestureThrow();
             }
             else
             {
-                CancelHeldBall();
+                DropHeldBall();
             }
-        }
-    }
-
-    private void HandleKeyboardDebugInput()
-    {
-        float movement = Input.GetAxisRaw("Horizontal") * aimSpeed * Time.deltaTime;
-        Vector3 nextPosition = ball.position + new Vector3(movement, 0f, 0f);
-        nextPosition.x = Mathf.Clamp(nextPosition.x, -RegulationBowlingDimensions.AimLimit, RegulationBowlingDimensions.AimLimit);
-        ball.MovePosition(nextPosition);
-
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            ThrowBall(Vector3.forward, throwPower);
         }
     }
 
@@ -140,19 +133,38 @@ public class BowlingGame : MonoBehaviour
         ball.linearVelocity = Vector3.zero;
         ball.angularVelocity = Vector3.zero;
         ball.isKinematic = true;
+        ball.position = new Vector3(ballStart.x, heldBallHeight, ballStart.z);
+        SetAimGuideVisible(false);
+    }
+
+    private void BeginDelivery()
+    {
+        aimingThrow = true;
+        gestureStart = Input.mousePosition;
+        deliveryStartTime = Time.time;
+        SetAimGuideVisible(true);
+    }
+
+    private void UpdateDelivery()
+    {
+        float progress = GetDeliveryProgress();
+        float easedProgress = Mathf.SmoothStep(0f, 1f, progress);
+        ball.position = new Vector3(
+            ballStart.x,
+            Mathf.Lerp(heldBallHeight, RegulationBowlingDimensions.BallRadius, easedProgress),
+            Mathf.Lerp(ballStart.z, ReleaseLineZ, easedProgress));
     }
 
     private void ReleaseGestureThrow()
     {
-        Vector2 gesture = GetGesture();
-        Vector3 direction = new Vector3(gesture.x, 0f, gesture.y).normalized;
-        ThrowBall(direction, GetGestureThrowPower());
+        ThrowBall(GetGestureDirection(), GetGestureThrowPower());
     }
 
     private void ThrowBall(Vector3 direction, float power)
     {
         holdingBall = false;
         aimingThrow = false;
+        SetAimGuideVisible(false);
         thrown = true;
         throwTime = Time.time;
         ball.isKinematic = false;
@@ -160,11 +172,14 @@ public class BowlingGame : MonoBehaviour
         ball.angularVelocity = Vector3.Cross(Vector3.up, direction) * (power * 2f);
     }
 
-    private void CancelHeldBall()
+    private void DropHeldBall()
     {
         holdingBall = false;
         aimingThrow = false;
-        ResetBallToStart();
+        SetAimGuideVisible(false);
+        ball.isKinematic = false;
+        ball.linearVelocity = Vector3.zero;
+        ball.angularVelocity = Vector3.zero;
     }
 
     private Vector2 GetGesture()
@@ -184,15 +199,92 @@ public class BowlingGame : MonoBehaviour
         return Mathf.InverseLerp(minimumThrowPower, throwPower, GetGestureThrowPower());
     }
 
-    private string GetGestureDirectionName()
+    private Vector3 GetGestureDirection()
     {
         Vector2 gesture = GetGesture();
-        if (Mathf.Abs(gesture.x) <= gesture.y * 0.25f)
+        if (gesture.sqrMagnitude < 1f)
         {
-            return "正面";
+            return Vector3.forward;
         }
 
-        return gesture.x < 0f ? "左前" : "右前";
+        float rawAngle = Mathf.Atan2(gesture.x, Mathf.Max(1f, gesture.y)) * Mathf.Rad2Deg;
+        float clampedAngle = Mathf.Clamp(rawAngle, -maximumThrowAngle, maximumThrowAngle);
+        return Quaternion.Euler(0f, clampedAngle, 0f) * Vector3.forward;
+    }
+
+    private float GetThrowAngle()
+    {
+        return Vector3.SignedAngle(Vector3.forward, GetGestureDirection(), Vector3.up);
+    }
+
+    private float GetDeliveryProgress()
+    {
+        return Mathf.Clamp01((Time.time - deliveryStartTime) / Mathf.Max(0.1f, deliveryDuration));
+    }
+
+    private void CreateReleaseLine()
+    {
+        if (GameObject.Find("Release Line") != null)
+        {
+            return;
+        }
+
+        GameObject releaseLine = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        releaseLine.name = "Release Line";
+        releaseLine.transform.position = new Vector3(0f, 0.012f, ReleaseLineZ);
+        releaseLine.transform.localScale = new Vector3(
+            RegulationBowlingDimensions.LaneWidth,
+            0.024f,
+            0.12f);
+
+        Collider lineCollider = releaseLine.GetComponent<Collider>();
+        if (lineCollider != null)
+        {
+            Destroy(lineCollider);
+        }
+
+        Renderer lineRenderer = releaseLine.GetComponent<Renderer>();
+        Shader shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
+        lineRenderer.material = new Material(shader)
+        {
+            color = new Color(0.1f, 0.75f, 1f)
+        };
+    }
+
+    private void CreateAimGuide()
+    {
+        GameObject guideObject = new GameObject("Throw Direction Guide");
+        aimGuide = guideObject.AddComponent<LineRenderer>();
+        aimGuide.positionCount = 2;
+        aimGuide.startWidth = 0.1f;
+        aimGuide.endWidth = 0.035f;
+        aimGuide.useWorldSpace = true;
+        Shader shader = Shader.Find("Sprites/Default") ?? Shader.Find("Universal Render Pipeline/Unlit");
+        aimGuide.material = new Material(shader);
+        aimGuide.startColor = new Color(0.2f, 1f, 0.85f, 0.95f);
+        aimGuide.endColor = new Color(0.2f, 1f, 0.85f, 0.2f);
+        SetAimGuideVisible(false);
+    }
+
+    private void UpdateAimGuide()
+    {
+        if (aimGuide == null)
+        {
+            return;
+        }
+
+        Vector3 start = ball.position + Vector3.up * 0.06f;
+        float guideLength = Mathf.Lerp(3f, 8f, GetGesturePowerPercent());
+        aimGuide.SetPosition(0, start);
+        aimGuide.SetPosition(1, start + GetGestureDirection() * guideLength);
+    }
+
+    private void SetAimGuideVisible(bool isVisible)
+    {
+        if (aimGuide != null)
+        {
+            aimGuide.enabled = isVisible;
+        }
     }
 
     private int CountFallenPins()
@@ -221,6 +313,7 @@ public class BowlingGame : MonoBehaviour
         roundScored = false;
         holdingBall = false;
         aimingThrow = false;
+        SetAimGuideVisible(false);
         score = 0;
 
         if (ball != null)
@@ -329,7 +422,7 @@ public class BowlingGame : MonoBehaviour
         };
 
         GUI.Label(new Rect(24, 22, 500, 40), "Mini Bowling", titleStyle);
-        GUI.Label(new Rect(25, 66, 920, 30), "右クリックで持つ → Spaceで構える → マウスを前へ動かして右クリックを離す", textStyle);
+        GUI.Label(new Rect(25, 66, 920, 30), "右クリックで持ち上げる → Spaceで助走 → マウスで方向を決めて右クリックを離す", textStyle);
 
         int pinCount = pins?.Length ?? 0;
         string result = roundScored
@@ -340,15 +433,19 @@ public class BowlingGame : MonoBehaviour
         if (aimingThrow)
         {
             float powerPercent = GetGesturePowerPercent();
-            GUI.Label(new Rect(25, 126, 180, 30), $"投球準備：{GetGestureDirectionName()}", textStyle);
-            GUI.Label(new Rect(205, 126, 64, 30), "強さ", textStyle);
-            GUI.Box(new Rect(270, 132, 170, 18), string.Empty);
-            GUI.Box(new Rect(270, 132, 170f * powerPercent, 18), string.Empty);
-            GUI.Label(new Rect(450, 126, 220, 30), "右クリックを離して投球", textStyle);
+            float angle = GetThrowAngle();
+            string directionText = Mathf.Abs(angle) < 0.5f
+                ? "正面 0°"
+                : angle < 0f ? $"左 {Mathf.Abs(angle):0.0}°" : $"右 {angle:0.0}°";
+            GUI.Label(new Rect(25, 126, 230, 30), $"方向：{directionText}", textStyle);
+            GUI.Label(new Rect(255, 126, 64, 30), "強さ", textStyle);
+            GUI.Box(new Rect(320, 132, 170, 18), string.Empty);
+            GUI.Box(new Rect(320, 132, 170f * powerPercent, 18), string.Empty);
+            GUI.Label(new Rect(505, 126, 350, 30), $"リリースラインまで {GetDeliveryProgress() * 100f:0}%", textStyle);
         }
         else if (holdingBall)
         {
-            GUI.Label(new Rect(25, 126, 700, 30), "ボールを持っています。Spaceで投球準備、右クリックを離すとキャンセル", textStyle);
+            GUI.Label(new Rect(25, 126, 700, 30), "ボールを持ち上げています。右クリックを押したままSpaceで助走開始", textStyle);
         }
 
         if (GUI.Button(new Rect(25, 168, 130, 36), "リセット (R)"))
