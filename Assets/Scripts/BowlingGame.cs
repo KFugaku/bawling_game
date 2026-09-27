@@ -102,11 +102,6 @@ public class BowlingGame : MonoBehaviour
             return;
         }
 
-        if (!aimingThrow && Input.GetKeyDown(KeyCode.Space))
-        {
-            BeginDelivery();
-        }
-
         if (aimingThrow)
         {
             UpdateDelivery();
@@ -115,14 +110,7 @@ public class BowlingGame : MonoBehaviour
 
         if (Input.GetMouseButtonUp(1))
         {
-            if (aimingThrow)
-            {
-                ReleaseGestureThrow();
-            }
-            else
-            {
-                DropHeldBall();
-            }
+            ReleaseGestureThrow();
         }
     }
 
@@ -136,6 +124,7 @@ public class BowlingGame : MonoBehaviour
         ball.isKinematic = true;
         ball.position = new Vector3(ballStart.x, heldBallHeight, ballStart.z);
         SetAimGuideVisible(false);
+        BeginDelivery();
     }
 
     private void BeginDelivery()
@@ -200,17 +189,6 @@ public class BowlingGame : MonoBehaviour
         ball.isKinematic = false;
         ball.linearVelocity = direction * power;
         ball.angularVelocity = Vector3.Cross(Vector3.up, direction) * (power * 2f);
-    }
-
-    private void DropHeldBall()
-    {
-        holdingBall = false;
-        aimingThrow = false;
-        UnlockCursor();
-        SetAimGuideVisible(false);
-        ball.isKinematic = false;
-        ball.linearVelocity = Vector3.zero;
-        ball.angularVelocity = Vector3.zero;
     }
 
     private float GetReleasePowerPercent()
@@ -388,13 +366,20 @@ public class BowlingGame : MonoBehaviour
 
     private void ResetBallToStart()
     {
+        ball.gameObject.SetActive(true);
+        Renderer[] ballRenderers = ball.GetComponentsInChildren<Renderer>(true);
+        foreach (Renderer ballRenderer in ballRenderers)
+        {
+            ballRenderer.enabled = true;
+        }
+
         // Velocity can only be changed while the Rigidbody is dynamic.
         ball.isKinematic = false;
+        ball.detectCollisions = true;
         ball.linearDamping = 0f;
         ball.linearVelocity = Vector3.zero;
         ball.angularVelocity = Vector3.zero;
-        ball.position = ballStart;
-        ball.rotation = Quaternion.identity;
+        ball.transform.SetPositionAndRotation(ballStart, Quaternion.identity);
         ball.isKinematic = true;
         Physics.SyncTransforms();
     }
@@ -473,7 +458,7 @@ public class BowlingGame : MonoBehaviour
         };
 
         GUI.Label(new Rect(24, 22, 500, 40), "Mini Bowling", titleStyle);
-        GUI.Label(new Rect(25, 66, 1000, 30), "右クリックで持ち上げる → Spaceで構える → マウス移動で運び、右クリックを離す", textStyle);
+        GUI.Label(new Rect(25, 66, 1000, 30), "右クリックで投球開始 → マウス移動でボールを運ぶ → 右クリックを離してリリース", textStyle);
 
         int pinCount = pins?.Length ?? 0;
         string result = roundScored
@@ -494,11 +479,6 @@ public class BowlingGame : MonoBehaviour
             GUI.Box(new Rect(320, 132, 170f * powerPercent, 18), string.Empty);
             GUI.Label(new Rect(505, 126, 350, 30), $"リリースラインまで {GetDeliveryProgress() * 100f:0}%", textStyle);
         }
-        else if (holdingBall)
-        {
-            GUI.Label(new Rect(25, 126, 700, 30), "ボールを持ち上げています。右クリックを押したままSpaceで助走開始", textStyle);
-        }
-
         if (GUI.Button(new Rect(25, 168, 130, 36), "リセット (R)"))
         {
             ResetRound();
