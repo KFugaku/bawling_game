@@ -11,8 +11,11 @@ public class BowlingGame : MonoBehaviour
     [SerializeField] private float forwardMouseSensitivity = 0.16f;
     [SerializeField] private float horizontalMouseSensitivity = 0.04f;
     [SerializeField] private float horizontalDirectionScale = 0.3f;
-    [SerializeField] private float releaseSpeedMultiplier = 2.8f;
-    [SerializeField] private float minimumThrowPower = 10f;
+    [SerializeField] private float minimumThrowPower = 6f;
+    [SerializeField] private float slowMouseSpeed = 2f;
+    [SerializeField] private float fastMouseSpeed = 45f;
+    [SerializeField] private float mouseSpeedExponent = 1.4f;
+    [SerializeField] private float mouseSpeedFalloff = 8f;
     [SerializeField] private float velocitySmoothing = 18f;
 
     private readonly Vector3 ballStart = new Vector3(
@@ -25,6 +28,8 @@ public class BowlingGame : MonoBehaviour
     private bool holdingBall;
     private bool aimingThrow;
     private float throwTime;
+    private float deliveryMouseSpeed;
+    private float lastMouseMovementTime;
     private int score;
     private Vector3 deliveryVelocity;
     private LineRenderer aimGuide;
@@ -131,6 +136,8 @@ public class BowlingGame : MonoBehaviour
     {
         aimingThrow = true;
         deliveryVelocity = Vector3.zero;
+        deliveryMouseSpeed = 0f;
+        lastMouseMovementTime = Time.time;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
         SetAimGuideVisible(true);
@@ -141,6 +148,7 @@ public class BowlingGame : MonoBehaviour
         Vector2 mouseMovement = new Vector2(
             Input.GetAxisRaw("Mouse X"),
             Input.GetAxisRaw("Mouse Y"));
+        UpdateMouseSpeed(mouseMovement);
 
         Vector3 previousPosition = ball.position;
         float nextX = Mathf.Clamp(
@@ -170,6 +178,32 @@ public class BowlingGame : MonoBehaviour
         {
             float smoothing = 1f - Mathf.Exp(-velocitySmoothing * Time.deltaTime);
             deliveryVelocity = Vector3.Lerp(deliveryVelocity, frameVelocity, smoothing);
+        }
+    }
+
+    private void UpdateMouseSpeed(Vector2 mouseMovement)
+    {
+        float instantMouseSpeed = mouseMovement.magnitude / Mathf.Max(Time.deltaTime, 0.001f);
+        if (instantMouseSpeed > 0.01f)
+        {
+            // Fast flicks should respond immediately. Slower changes are blended so
+            // a tiny one-frame wobble does not make the power display jump around.
+            if (instantMouseSpeed > deliveryMouseSpeed)
+            {
+                deliveryMouseSpeed = instantMouseSpeed;
+            }
+            else
+            {
+                float smoothing = 1f - Mathf.Exp(-velocitySmoothing * Time.deltaTime);
+                deliveryMouseSpeed = Mathf.Lerp(deliveryMouseSpeed, instantMouseSpeed, smoothing);
+            }
+
+            lastMouseMovementTime = Time.time;
+        }
+        else if (Time.time - lastMouseMovementTime > 0.08f)
+        {
+            float falloff = 1f - Mathf.Exp(-mouseSpeedFalloff * Time.deltaTime);
+            deliveryMouseSpeed = Mathf.Lerp(deliveryMouseSpeed, 0f, falloff);
         }
     }
 
@@ -209,10 +243,12 @@ public class BowlingGame : MonoBehaviour
 
     private float GetReleaseSpeed()
     {
-        return Mathf.Clamp(
-            GetAdjustedReleaseVelocity().magnitude * releaseSpeedMultiplier,
-            minimumThrowPower,
-            throwPower);
+        float normalizedMouseSpeed = Mathf.InverseLerp(
+            slowMouseSpeed,
+            fastMouseSpeed,
+            deliveryMouseSpeed);
+        float acceleratedMouseSpeed = Mathf.Pow(normalizedMouseSpeed, mouseSpeedExponent);
+        return Mathf.Lerp(minimumThrowPower, throwPower, acceleratedMouseSpeed);
     }
 
     private Vector3 GetAdjustedReleaseVelocity()
@@ -341,6 +377,7 @@ public class BowlingGame : MonoBehaviour
         holdingBall = false;
         aimingThrow = false;
         deliveryVelocity = Vector3.zero;
+        deliveryMouseSpeed = 0f;
         UnlockCursor();
         SetAimGuideVisible(false);
         score = 0;
