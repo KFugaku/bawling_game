@@ -18,6 +18,14 @@ public class BowlingGame : MonoBehaviour
     [SerializeField] private float mouseSpeedExponent = 2f;
     [SerializeField] private float mouseSpeedAveraging = 7f;
     [SerializeField] private float velocitySmoothing = 18f;
+    [Header("Ball Curve")]
+    [SerializeField] private float wheelSpinSensitivity = 1.5f;
+    [SerializeField] private float maximumSideSpin = 14f;
+    [SerializeField] private float curveAcceleration = 0.55f;
+    [SerializeField] private float curveRampTime = 1.1f;
+    [SerializeField] private float spinDecayPerSecond = 0.08f;
+    [SerializeField] private float minimumCurveSpeed = 1f;
+    [SerializeField] private float curveGuideOffset = 1.2f;
 
     private readonly Vector3 ballStart = new Vector3(
         0f,
@@ -30,12 +38,15 @@ public class BowlingGame : MonoBehaviour
     private bool aimingThrow;
     private float throwTime;
     private float deliveryMouseSpeed;
+    private float selectedCurveSpin;
+    private float activeCurveSpin;
     private int mouseInputWarmupFrames;
     private int score;
     private Vector3 deliveryVelocity;
     private LineRenderer aimGuide;
 
     private const float ReleaseLineZ = 0f;
+    private const int AimGuidePointCount = 16;
 
     private void Awake()
     {
@@ -96,6 +107,11 @@ public class BowlingGame : MonoBehaviour
 
     }
 
+    private void FixedUpdate()
+    {
+        ApplyBallCurve();
+    }
+
     private void HandleMouseThrowInput()
     {
         if (Input.GetMouseButtonDown(1))
@@ -110,6 +126,7 @@ public class BowlingGame : MonoBehaviour
 
         if (aimingThrow)
         {
+            UpdateCurveSelection();
             UpdateDelivery();
             UpdateAimGuide();
         }
@@ -200,10 +217,10 @@ public class BowlingGame : MonoBehaviour
 
     private void ReleaseGestureThrow()
     {
-        ThrowBall(GetReleaseDirection(), GetReleaseSpeed());
+        ThrowBall(GetReleaseDirection(), GetReleaseSpeed(), selectedCurveSpin);
     }
 
-    private void ThrowBall(Vector3 direction, float power)
+    private void ThrowBall(Vector3 direction, float power, float curveSpin)
     {
         holdingBall = false;
         aimingThrow = false;
@@ -211,9 +228,53 @@ public class BowlingGame : MonoBehaviour
         SetAimGuideVisible(false);
         thrown = true;
         throwTime = Time.time;
+        activeCurveSpin = curveSpin;
         ball.isKinematic = false;
         ball.linearVelocity = direction * power;
-        ball.angularVelocity = Vector3.Cross(Vector3.up, direction) * (power * 2f);
+        Vector3 rollingSpin = Vector3.Cross(Vector3.up, direction) * (power * 2f);
+        Vector3 sideSpin = Vector3.up * (activeCurveSpin * maximumSideSpin);
+        ball.angularVelocity = rollingSpin + sideSpin;
+    }
+
+    private void UpdateCurveSelection()
+    {
+        float wheelMovement = Input.GetAxisRaw("Mouse ScrollWheel");
+        if (Mathf.Abs(wheelMovement) < 0.0001f)
+        {
+            return;
+        }
+
+        selectedCurveSpin = Mathf.Clamp(
+            selectedCurveSpin + wheelMovement * wheelSpinSensitivity,
+            -1f,
+            1f);
+    }
+
+    private void ApplyBallCurve()
+    {
+        if (!thrown || ball == null || ball.isKinematic || ballInGutter)
+        {
+            return;
+        }
+
+        Vector3 laneVelocity = ball.linearVelocity;
+        laneVelocity.y = 0f;
+        float laneSpeed = laneVelocity.magnitude;
+        if (laneSpeed < minimumCurveSpeed || Mathf.Abs(activeCurveSpin) < 0.001f)
+        {
+            return;
+        }
+
+        float ramp = Mathf.Clamp01((Time.time - throwTime) / Mathf.Max(curveRampTime, 0.01f));
+        float speedRatio = Mathf.Clamp01(laneSpeed / Mathf.Max(throwPower * throwSpeedBoost, 0.01f));
+        Vector3 curveDirection = Vector3.Cross(Vector3.up, laneVelocity.normalized);
+        ball.AddForce(
+            curveDirection * (activeCurveSpin * curveAcceleration * ramp * speedRatio),
+            ForceMode.Acceleration);
+        activeCurveSpin = Mathf.MoveTowards(
+            activeCurveSpin,
+            0f,
+            spinDecayPerSecond * Time.fixedDeltaTime);
     }
 
     private float GetReleasePowerPercent()
@@ -311,7 +372,7 @@ public class BowlingGame : MonoBehaviour
     {
         GameObject guideObject = new GameObject("Throw Direction Guide");
         aimGuide = guideObject.AddComponent<LineRenderer>();
-        aimGuide.positionCount = 2;
+        aimGuide.positionCount = AimGuidePointCount;
         aimGuide.startWidth = 0.1f;
         aimGuide.endWidth = 0.035f;
         aimGuide.useWorldSpace = true;
@@ -331,8 +392,17 @@ public class BowlingGame : MonoBehaviour
 
         Vector3 start = ball.position + Vector3.up * 0.06f;
         float guideLength = Mathf.Lerp(3f, 8f, GetReleasePowerPercent());
-        aimGuide.SetPosition(0, start);
-        aimGuide.SetPosition(1, start + GetReleaseDirection() * guideLength);
+        Vector3 forward = GetReleaseDirection();
+        Vector3 curveDirection = Vector3.Cross(Vector3.up, forward);
+        for (int index = 0; index < AimGuidePointCount; index++)
+        {
+            float progress = index / (AimGuidePointCount - 1f);
+            float forwardDistance = guideLength * progress;
+            float curveDistance = selectedCurveSpin * curveGuideOffset * progress * progress;
+            aimGuide.SetPosition(
+                index,
+                start + forward * forwardDistance + curveDirection * curveDistance);
+        }
     }
 
     private void SetAimGuideVisible(bool isVisible)
@@ -382,6 +452,8 @@ public class BowlingGame : MonoBehaviour
         aimingThrow = false;
         deliveryVelocity = Vector3.zero;
         deliveryMouseSpeed = 0f;
+        selectedCurveSpin = 0f;
+        activeCurveSpin = 0f;
         mouseInputWarmupFrames = 0;
         UnlockCursor();
         SetAimGuideVisible(false);
@@ -500,7 +572,7 @@ public class BowlingGame : MonoBehaviour
         };
 
         GUI.Label(new Rect(24, 22, 500, 40), "Mini Bowling", titleStyle);
-        GUI.Label(new Rect(25, 66, 1000, 30), "右クリックで投球開始 → マウス移動でボールを運ぶ → 右クリックを離してリリース", textStyle);
+        GUI.Label(new Rect(25, 66, 1100, 30), "右クリックで投球開始 → マウス移動でボールを運ぶ → ホイールでカーブ → 右クリックを離してリリース", textStyle);
 
         int pinCount = pins?.Length ?? 0;
         string result = roundScored
@@ -520,13 +592,20 @@ public class BowlingGame : MonoBehaviour
             GUI.Box(new Rect(320, 132, 170, 18), string.Empty);
             GUI.Box(new Rect(320, 132, 170f * powerPercent, 18), string.Empty);
             GUI.Label(new Rect(505, 126, 350, 30), $"リリースラインまで {GetDeliveryProgress() * 100f:0}%", textStyle);
+            string curveText = Mathf.Abs(selectedCurveSpin) < 0.01f
+                ? "なし"
+                : selectedCurveSpin < 0f ? "左カーブ" : "右カーブ";
+            GUI.Label(
+                new Rect(25, 156, 600, 30),
+                $"回転：{curveText} {Mathf.Abs(selectedCurveSpin) * 100f:0}%（マウスホイールで調整）",
+                textStyle);
         }
-        if (GUI.Button(new Rect(25, 168, 130, 36), "リセット (R)"))
+        if (GUI.Button(new Rect(25, 198, 130, 36), "リセット (R)"))
         {
             ResetRound();
         }
 
-        if (roundScored && GUI.Button(new Rect(25, 212, 130, 36), "もう一度投げる"))
+        if (roundScored && GUI.Button(new Rect(25, 242, 130, 36), "もう一度投げる"))
         {
             ResetRound();
         }
