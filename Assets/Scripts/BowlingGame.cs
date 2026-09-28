@@ -8,7 +8,10 @@ public class BowlingGame : MonoBehaviour
     [SerializeField] private float throwPower = RegulationBowlingDimensions.ThrowSpeed;
     [Header("Mouse Throw")]
     [SerializeField] private float heldBallHeight = 2.2f;
-    [SerializeField] private float forwardMouseSensitivity = 0.16f;
+    // This controls only how far the held ball travels during the approach.
+    // Release power still uses the raw mouse speed, so slowing the approach
+    // gives the player more time to release without weakening the throw.
+    [SerializeField] private float forwardMouseSensitivity = 0.02f;
     [SerializeField] private float horizontalMouseSensitivity = 0.04f;
     [SerializeField] private float horizontalDirectionScale = 0.15f;
     [SerializeField] private float horizontalDirectionDeadZone = 0.12f;
@@ -20,6 +23,7 @@ public class BowlingGame : MonoBehaviour
     [SerializeField] private float mouseSpeedExponent = 2f;
     [SerializeField] private float mouseSpeedAveraging = 7f;
     [SerializeField] private float velocitySmoothing = 18f;
+    [SerializeField, Range(0.1f, 1f)] private float fullPowerReleaseProgress = 0.5f;
     [Header("Ball Curve")]
     [SerializeField] private float wheelSpinSampleWindow = 0.2f;
     [SerializeField] private float wheelDeltaForMaximumSpin = 0.4f;
@@ -68,7 +72,9 @@ public class BowlingGame : MonoBehaviour
     private Color celebrationColor = Color.white;
     private float celebrationStartTime = -10f;
 
-    private const float ReleaseLineZ = 0f;
+    // Move the release point slightly toward the pins so the player has a
+    // longer, less rushed approach before letting go of the ball.
+    private const float ReleaseLineZ = 5f;
     private const int AimGuidePointCount = 16;
     private const float CelebrationDuration = 2.4f;
 
@@ -751,13 +757,15 @@ public class BowlingGame : MonoBehaviour
         float acceleratedMouseSpeed = Mathf.Pow(normalizedMouseSpeed, mouseSpeedExponent);
         float inputSpeed = Mathf.Lerp(minimumThrowPower, maximumReleaseSpeed, acceleratedMouseSpeed);
 
-        // The approach unlocks speed quadratically. Releasing halfway down the
-        // approach can therefore use only 25% of the available speed range.
+        // Ball travel during the approach is deliberately slow, but that should
+        // not make the released ball feel weak. Keep a small early-release guard,
+        // then allow normal power once the player has made it halfway through.
         float progress = GetDeliveryProgress();
+        float powerProgress = Mathf.InverseLerp(0.15f, fullPowerReleaseProgress, progress);
         float approachLimit = Mathf.Lerp(
             minimumThrowPower,
             maximumReleaseSpeed,
-            progress * progress);
+            powerProgress * powerProgress);
         return Mathf.Min(inputSpeed, approachLimit);
     }
 
