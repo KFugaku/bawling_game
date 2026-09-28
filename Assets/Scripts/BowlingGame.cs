@@ -75,6 +75,10 @@ public class BowlingGame : MonoBehaviour
     // Move the release point slightly toward the pins so the player has a
     // longer, less rushed approach before letting go of the ball.
     private const float ReleaseLineZ = 5f;
+    // Browser pointer-lock reports a much smaller Mouse Y value than the Editor.
+    // Compensate only the held-ball approach distance; release power, direction,
+    // and curve input keep using their existing raw input calculations.
+    private const float WebGlApproachSensitivityMultiplier = 3f;
     private const int AimGuidePointCount = 16;
     private const float CelebrationDuration = 2.4f;
 
@@ -234,8 +238,12 @@ public class BowlingGame : MonoBehaviour
             previousPosition.x + mouseMovement.x * horizontalMouseSensitivity,
             -RegulationBowlingDimensions.AimLimit,
             RegulationBowlingDimensions.AimLimit);
+        float approachSensitivity = forwardMouseSensitivity;
+#if UNITY_WEBGL && !UNITY_EDITOR
+        approachSensitivity *= WebGlApproachSensitivityMultiplier;
+#endif
         float nextZ = Mathf.Clamp(
-            previousPosition.z + mouseMovement.y * forwardMouseSensitivity,
+            previousPosition.z + mouseMovement.y * approachSensitivity,
             ballStart.z,
             ReleaseLineZ);
 
