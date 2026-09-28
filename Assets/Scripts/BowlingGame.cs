@@ -978,7 +978,7 @@ public class BowlingGame : MonoBehaviour
         GUI.Label(new Rect(24f, 18f, viewWidth - 48f, 42f), "Mini Bowling", titleStyle);
         GUI.Label(
             new Rect(25f, 57f, viewWidth - 50f, 28f),
-            "右クリックで投球開始 → マウス移動でボールを運ぶ → 離す直前にホイールを回す → リリース",
+            "右クリック長押しでボールを持つ → マウス移動で助走・方向を調整 → 右クリックを離して投球（離す直前のホイール操作でカーブ）",
             helpStyle);
         GUI.Label(new Rect(25f, 87f, viewWidth - 50f, 32f), statusMessage, textStyle);
         DrawScoreboard(scoreStyle, textStyle, helpStyle, viewWidth);
