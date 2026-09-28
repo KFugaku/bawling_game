@@ -139,7 +139,7 @@ public class BowlingGame : MonoBehaviour
             return;
         }
 
-        if (!ballInGutter && Mathf.Abs(ball.position.x) > RegulationBowlingDimensions.GutterEntryX)
+        if (!ballInGutter && IsBallActuallyInGutter())
         {
             ballInGutter = true;
         }
@@ -371,8 +371,10 @@ public class BowlingGame : MonoBehaviour
         Vector3 velocity = ball.linearVelocity;
         velocity.y = 0f;
         bool stopped = velocity.sqrMagnitude < 0.04f;
-        bool reachedPinDeck = ball.position.z >=
-            RegulationBowlingDimensions.FoulLineToHeadPin - RegulationBowlingDimensions.PinRowDepth;
+        // Do not start the settle timer before the ball reaches the head pin.
+        // With a slow throw, the old threshold was over one unit in front of the
+        // rack and could finalize a zero just before the collision happened.
+        bool reachedPinDeck = ball.position.z >= RegulationBowlingDimensions.FoulLineToHeadPin;
         bool leftPlayableArea = ball.position.y < -2f;
         return stopped || reachedPinDeck || leftPlayableArea;
     }
@@ -399,9 +401,13 @@ public class BowlingGame : MonoBehaviour
     private void CompleteRoll()
     {
         int standingPins = CountStandingPins();
-        int knockedPins = ballInGutter
-            ? 0
-            : Mathf.Clamp(pinsStandingAtRollStart - standingPins, 0, pinsStandingAtRollStart);
+        // Always keep the score consistent with the pins the player actually saw fall.
+        // A real gutter ball cannot reach the rack, so a separate gutter flag must not
+        // erase pins after a curved ball crosses the lane edge near the pin deck.
+        int knockedPins = Mathf.Clamp(
+            pinsStandingAtRollStart - standingPins,
+            0,
+            pinsStandingAtRollStart);
 
         rolls.Add(knockedPins);
         currentFrameRolls.Add(knockedPins);
@@ -412,6 +418,23 @@ public class BowlingGame : MonoBehaviour
 
         ResolveNextRollState();
         Physics.SyncTransforms();
+    }
+
+    private bool IsBallActuallyInGutter()
+    {
+        // Crossing the lane edge alone is not enough: a strongly curved ball can
+        // cross that boundary beside the pin deck after it has already hit pins.
+        // Treat it as a gutter only after its centre has dropped below lane level,
+        // and only while it is still in front of the rack.
+        float gutterCentreX = RegulationBowlingDimensions.GutterEntryX +
+            RegulationBowlingDimensions.BallRadius * 0.2f;
+        float gutterCentreY = RegulationBowlingDimensions.BallRadius * 0.85f;
+        float pinDeckStartZ = RegulationBowlingDimensions.FoulLineToHeadPin -
+            RegulationBowlingDimensions.PinRowDepth;
+
+        return Mathf.Abs(ball.position.x) > gutterCentreX &&
+            ball.position.y < gutterCentreY &&
+            ball.position.z < pinDeckStartZ;
     }
 
     private void ResolveNextRollState()

@@ -4,10 +4,14 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody))]
 public sealed class BowlingPin : MonoBehaviour
 {
+    private const float FallenUprightnessThreshold = 0.9f;
+    private const float FallenDropDistance = 0.2f;
+
     private Rigidbody body;
     private Vector3 startPosition;
     private Quaternion startRotation;
     private bool initialized;
+    private bool knockedDown;
 
     private void Awake()
     {
@@ -15,9 +19,20 @@ public sealed class BowlingPin : MonoBehaviour
         Initialize();
     }
 
-    public bool IsFallen =>
-        transform.position.y < 0.35f ||
-        Vector3.Dot(transform.up, Vector3.up) < 0.7f;
+    public bool IsFallen
+    {
+        get
+        {
+            Initialize();
+            UpdateKnockedDownState();
+            return knockedDown;
+        }
+    }
+
+    private void FixedUpdate()
+    {
+        UpdateKnockedDownState();
+    }
 
     public bool IsMoving(float linearSpeedThreshold, float angularSpeedThreshold)
     {
@@ -49,6 +64,7 @@ public sealed class BowlingPin : MonoBehaviour
     {
         gameObject.SetActive(true);
         Initialize();
+        knockedDown = false;
         if (body == null)
         {
             return;
@@ -62,6 +78,23 @@ public sealed class BowlingPin : MonoBehaviour
         body.linearVelocity = Vector3.zero;
         body.angularVelocity = Vector3.zero;
         body.Sleep();
+    }
+
+    private void UpdateKnockedDownState()
+    {
+        if (!initialized || knockedDown || !gameObject.activeInHierarchy)
+        {
+            return;
+        }
+
+        float uprightness = Vector3.Dot(transform.up, Vector3.up);
+        float dropDistance = startPosition.y - transform.position.y;
+        if (uprightness < FallenUprightnessThreshold || dropDistance > FallenDropDistance)
+        {
+            // Once a pin has visibly fallen during a roll it stays down for scoring,
+            // even if collisions make it bounce into a more upright pose later.
+            knockedDown = true;
+        }
     }
 
     private void Initialize()
