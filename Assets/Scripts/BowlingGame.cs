@@ -11,7 +11,7 @@ public class BowlingGame : MonoBehaviour
     // This controls only how far the held ball travels during the approach.
     // Release power still uses the raw mouse speed, so slowing the approach
     // gives the player more time to release without weakening the throw.
-    [SerializeField] private float forwardMouseSensitivity = 0.02f;
+    [SerializeField] private float forwardMouseSensitivity = 0.06f;
     [SerializeField] private float horizontalMouseSensitivity = 0.04f;
     [SerializeField] private float horizontalDirectionScale = 0.15f;
     [SerializeField] private float horizontalDirectionDeadZone = 0.12f;
