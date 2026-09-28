@@ -791,11 +791,13 @@ public class BowlingGame : MonoBehaviour
         }
 
         Renderer lineRenderer = releaseLine.GetComponent<Renderer>();
-        Shader shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
-        lineRenderer.material = new Material(shader)
+        if (lineRenderer != null)
         {
-            color = new Color(0.1f, 0.75f, 1f)
-        };
+            // Reuse the primitive's built-in material instead of looking up a shader by
+            // name. Shader.Find targets can be stripped from WebGL builds, which would
+            // make Material's constructor throw and stop the rest of Awake from running.
+            lineRenderer.material.color = new Color(0.1f, 0.75f, 1f);
+        }
     }
 
     private void CreateAimGuide()
@@ -806,8 +808,20 @@ public class BowlingGame : MonoBehaviour
         aimGuide.startWidth = 0.1f;
         aimGuide.endWidth = 0.035f;
         aimGuide.useWorldSpace = true;
-        Shader shader = Shader.Find("Sprites/Default") ?? Shader.Find("Universal Render Pipeline/Unlit");
-        aimGuide.material = new Material(shader);
+
+        Renderer releaseLineRenderer = GameObject.Find("Release Line")?.GetComponent<Renderer>();
+        Renderer ballRenderer = ball != null ? ball.GetComponent<Renderer>() : null;
+        Material sourceMaterial = releaseLineRenderer != null
+            ? releaseLineRenderer.sharedMaterial
+            : ballRenderer != null ? ballRenderer.sharedMaterial : null;
+        if (sourceMaterial != null)
+        {
+            aimGuide.material = new Material(sourceMaterial)
+            {
+                color = Color.white
+            };
+        }
+
         aimGuide.startColor = new Color(0.2f, 1f, 0.85f, 0.95f);
         aimGuide.endColor = new Color(0.2f, 1f, 0.85f, 0.2f);
         SetAimGuideVisible(false);
