@@ -20,12 +20,12 @@ public class BowlingGame : MonoBehaviour
     [SerializeField] private float velocitySmoothing = 18f;
     [Header("Ball Curve")]
     [SerializeField] private float wheelSpinSensitivity = 1.5f;
-    [SerializeField] private float maximumSideSpin = 14f;
-    [SerializeField] private float curveAcceleration = 0.55f;
+    [SerializeField] private float maximumSideSpin = 20f;
+    [SerializeField] private float curveAcceleration = 1.1f;
     [SerializeField] private float curveRampTime = 1.1f;
     [SerializeField] private float spinDecayPerSecond = 0.08f;
     [SerializeField] private float minimumCurveSpeed = 1f;
-    [SerializeField] private float curveGuideOffset = 1.2f;
+    [SerializeField] private float curveGuideOffset = 1.6f;
 
     private readonly Vector3 ballStart = new Vector3(
         0f,
@@ -245,7 +245,7 @@ public class BowlingGame : MonoBehaviour
         }
 
         selectedCurveSpin = Mathf.Clamp(
-            selectedCurveSpin + wheelMovement * wheelSpinSensitivity,
+            selectedCurveSpin - wheelMovement * wheelSpinSensitivity,
             -1f,
             1f);
     }
