@@ -61,9 +61,14 @@ public class BowlingGame : MonoBehaviour
     private readonly List<int> currentFrameRolls = new List<int>();
     private RackMode nextRackMode = RackMode.FullRack;
     private string statusMessage = string.Empty;
+    private string celebrationText = string.Empty;
+    private string celebrationSubtext = string.Empty;
+    private Color celebrationColor = Color.white;
+    private float celebrationStartTime = -10f;
 
     private const float ReleaseLineZ = 0f;
     private const int AimGuidePointCount = 16;
+    private const float CelebrationDuration = 2.4f;
 
     private enum RackMode
     {
@@ -86,6 +91,7 @@ public class BowlingGame : MonoBehaviour
     private void Awake()
     {
         BowlingAlleyEnvironment.EnsureCreated();
+        BowlingAudioFeedback.EnsureCreated();
         ResolveSceneReferences();
         CreateReleaseLine();
         CreateAimGuide();
@@ -272,6 +278,10 @@ public class BowlingGame : MonoBehaviour
         pinsStillSince = -1f;
         statusMessage = "投球中：ボールとピンが止まるまでお待ちください";
         activeCurveSpin = curveSpin;
+        BowlingAudioFeedback.Instance?.PlayThrow(Mathf.InverseLerp(
+            minimumThrowPower,
+            throwPower * throwSpeedBoost,
+            power));
         ball.isKinematic = false;
         ball.linearVelocity = direction * power;
         Vector3 rollingSpin = Vector3.Cross(Vector3.up, direction) * (power * 2f);
@@ -412,12 +422,70 @@ public class BowlingGame : MonoBehaviour
         rolls.Add(knockedPins);
         currentFrameRolls.Add(knockedPins);
         lastRollPins = knockedPins;
+        TriggerRollCelebration();
         HideBallAfterRoll();
         thrown = false;
         activeCurveSpin = 0f;
 
         ResolveNextRollState();
         Physics.SyncTransforms();
+    }
+
+    private void TriggerRollCelebration()
+    {
+        bool strike = false;
+        bool spare = false;
+
+        if (currentFrameIndex < BowlingScoreCalculator.FrameCount - 1)
+        {
+            strike = currentFrameRolls.Count == 1 &&
+                currentFrameRolls[0] == BowlingScoreCalculator.PinsPerRack;
+            spare = currentFrameRolls.Count == 2 &&
+                currentFrameRolls[0] < BowlingScoreCalculator.PinsPerRack &&
+                currentFrameRolls[0] + currentFrameRolls[1] == BowlingScoreCalculator.PinsPerRack;
+        }
+        else if (currentFrameRolls.Count == 1)
+        {
+            strike = currentFrameRolls[0] == BowlingScoreCalculator.PinsPerRack;
+        }
+        else if (currentFrameRolls.Count == 2)
+        {
+            int first = currentFrameRolls[0];
+            int second = currentFrameRolls[1];
+            strike = first == BowlingScoreCalculator.PinsPerRack &&
+                second == BowlingScoreCalculator.PinsPerRack;
+            spare = first < BowlingScoreCalculator.PinsPerRack &&
+                first + second == BowlingScoreCalculator.PinsPerRack;
+        }
+        else if (currentFrameRolls.Count == 3)
+        {
+            int first = currentFrameRolls[0];
+            int second = currentFrameRolls[1];
+            int third = currentFrameRolls[2];
+            strike = third == BowlingScoreCalculator.PinsPerRack;
+            spare = first == BowlingScoreCalculator.PinsPerRack &&
+                second < BowlingScoreCalculator.PinsPerRack &&
+                second + third == BowlingScoreCalculator.PinsPerRack;
+        }
+
+        if (strike)
+        {
+            ShowCelebration("STRIKE!", "ストライク！", new Color(1f, 0.72f, 0.12f));
+            BowlingAudioFeedback.Instance?.PlayStrike();
+        }
+        else if (spare)
+        {
+            ShowCelebration("SPARE!", "ナイスカバー！", new Color(0.18f, 0.88f, 1f));
+            BowlingAudioFeedback.Instance?.PlaySpare();
+        }
+    }
+
+    private void ShowCelebration(string text, string subtext, Color color)
+    {
+        celebrationText = text;
+        celebrationSubtext = subtext;
+        celebrationColor = color;
+        celebrationStartTime = Time.unscaledTime;
     }
 
     private bool IsBallActuallyInGutter()
@@ -538,6 +606,9 @@ public class BowlingGame : MonoBehaviour
         gameComplete = false;
         waitingForNextRoll = false;
         nextRackMode = RackMode.FullRack;
+        celebrationText = string.Empty;
+        celebrationSubtext = string.Empty;
+        celebrationStartTime = -10f;
         ResetThrowState();
         ResetAllPins();
         ResetBallToStart();
@@ -949,7 +1020,107 @@ public class BowlingGame : MonoBehaviour
             StartNewGame();
         }
 
+        DrawCelebrationOverlay(viewWidth, Screen.height / uiScale);
+
         GUI.matrix = previousGuiMatrix;
+    }
+
+    private void DrawCelebrationOverlay(float viewWidth, float viewHeight)
+    {
+        float elapsed = Time.unscaledTime - celebrationStartTime;
+        if (string.IsNullOrEmpty(celebrationText) || elapsed < 0f || elapsed >= CelebrationDuration)
+        {
+            return;
+        }
+
+        float fadeIn = Mathf.Clamp01(elapsed / 0.16f);
+        float fadeOut = Mathf.Clamp01((CelebrationDuration - elapsed) / 0.5f);
+        float alpha = Mathf.Min(fadeIn, fadeOut);
+        float entrance = 1f - Mathf.Pow(1f - Mathf.Clamp01(elapsed / 0.45f), 3f);
+        float bounce = 1f + Mathf.Sin(elapsed * 15f) * Mathf.Exp(-elapsed * 4.5f) * 0.16f;
+        float centerY = Mathf.Max(410f, viewHeight * 0.54f);
+        float bannerWidth = Mathf.Min(viewWidth - 70f, 820f);
+        Rect bannerRect = new Rect(
+            (viewWidth - bannerWidth) * 0.5f,
+            centerY - 86f,
+            bannerWidth,
+            172f);
+
+        Color previousColor = GUI.color;
+        if (elapsed < 0.18f)
+        {
+            GUI.color = new Color(
+                celebrationColor.r,
+                celebrationColor.g,
+                celebrationColor.b,
+                (1f - elapsed / 0.18f) * 0.16f);
+            GUI.DrawTexture(new Rect(0f, 0f, viewWidth, viewHeight), Texture2D.whiteTexture);
+        }
+
+        GUI.color = new Color(0.025f, 0.035f, 0.065f, 0.86f * alpha);
+        GUI.DrawTexture(bannerRect, Texture2D.whiteTexture);
+        GUI.color = new Color(celebrationColor.r, celebrationColor.g, celebrationColor.b, 0.9f * alpha);
+        GUI.DrawTexture(new Rect(bannerRect.x, bannerRect.y, bannerRect.width, 5f), Texture2D.whiteTexture);
+        GUI.DrawTexture(
+            new Rect(bannerRect.x, bannerRect.yMax - 5f, bannerRect.width, 5f),
+            Texture2D.whiteTexture);
+
+        DrawCelebrationConfetti(viewWidth, centerY, elapsed, alpha);
+
+        GUIStyle mainStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = Mathf.RoundToInt(76f * bounce),
+            fontStyle = FontStyle.Bold,
+            alignment = TextAnchor.MiddleCenter
+        };
+        GUIStyle subStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 25,
+            fontStyle = FontStyle.Bold,
+            alignment = TextAnchor.MiddleCenter,
+            normal = { textColor = new Color(1f, 1f, 1f, alpha) }
+        };
+
+        float riseOffset = Mathf.Lerp(32f, 0f, entrance);
+        Rect textRect = new Rect(0f, centerY - 76f + riseOffset, viewWidth, 105f);
+        mainStyle.normal.textColor = new Color(0f, 0f, 0f, 0.72f * alpha);
+        GUI.Label(new Rect(textRect.x + 4f, textRect.y + 5f, textRect.width, textRect.height), celebrationText, mainStyle);
+        mainStyle.normal.textColor = new Color(
+            celebrationColor.r,
+            celebrationColor.g,
+            celebrationColor.b,
+            alpha);
+        GUI.Label(textRect, celebrationText, mainStyle);
+        GUI.Label(
+            new Rect(0f, centerY + 25f + riseOffset, viewWidth, 42f),
+            celebrationSubtext,
+            subStyle);
+
+        GUI.color = previousColor;
+    }
+
+    private void DrawCelebrationConfetti(float viewWidth, float centerY, float elapsed, float alpha)
+    {
+        Color[] colors =
+        {
+            celebrationColor,
+            Color.white,
+            new Color(1f, 0.3f, 0.5f),
+            new Color(0.4f, 1f, 0.55f)
+        };
+
+        for (int index = 0; index < 24; index++)
+        {
+            float startX = Mathf.Repeat(index * 0.618034f, 1f) * viewWidth;
+            float fallProgress = Mathf.Repeat(elapsed * 0.42f + index * 0.071f, 1f);
+            float x = startX + Mathf.Sin(elapsed * 5f + index) * 18f;
+            float y = centerY - 150f + fallProgress * 300f;
+            float width = index % 2 == 0 ? 8f : 13f;
+            float height = index % 3 == 0 ? 18f : 10f;
+            Color color = colors[index % colors.Length];
+            GUI.color = new Color(color.r, color.g, color.b, alpha * 0.88f);
+            GUI.DrawTexture(new Rect(x, y, width, height), Texture2D.whiteTexture);
+        }
     }
 
     private void DrawScoreboard(

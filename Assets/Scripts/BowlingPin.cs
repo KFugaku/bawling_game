@@ -34,6 +34,21 @@ public sealed class BowlingPin : MonoBehaviour
         UpdateKnockedDownState();
     }
 
+    private void OnCollisionEnter(Collision collision)
+    {
+        float impactSpeed = collision.relativeVelocity.magnitude;
+        if (impactSpeed < 0.6f)
+        {
+            return;
+        }
+
+        BowlingAudioFeedback feedback = BowlingAudioFeedback.Instance;
+        if (feedback != null)
+        {
+            feedback.PlayPinImpact(impactSpeed);
+        }
+    }
+
     public bool IsMoving(float linearSpeedThreshold, float angularSpeedThreshold)
     {
         Initialize();
