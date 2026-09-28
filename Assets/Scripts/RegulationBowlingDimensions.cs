@@ -35,5 +35,18 @@ public static class RegulationBowlingDimensions
 
     public const float BallStartZ = -9f;
     public const float ThrowSpeed = 38f;
-    public const float AimLimit = LaneWidth * 0.5f - BallRadius;
+    public const float GutterAimSafetyMargin = 0.03f;
+    // The ball only has a narrow, regulation-width path inside a gutter.
+    public const float AimLimit = LaneWidth * 0.5f + GutterWidth - BallRadius - GutterAimSafetyMargin;
+    public const float GutterEntryX = LaneWidth * 0.5f;
+
+    // A low view from behind the ball keeps the full regulation lane readable
+    // while still framing the ball at release and the ten-pin rack.
+    public const float PlayerCameraHeight = 4.5f;
+    public const float PlayerCameraZ = -23f;
+    public const float PlayerCameraTargetHeight = 1.2f;
+    public const float PlayerCameraTargetZ = 45f;
+    // Keep the ball and distant pin rack readable while the Unity Game view is
+    // set to Fit. The editor's 0.5x/1x control should only be used for previewing.
+    public const float PlayerCameraFieldOfView = 32f;
 }
