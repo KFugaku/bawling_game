@@ -19,8 +19,35 @@ public sealed class BowlingPin : MonoBehaviour
         transform.position.y < 0.35f ||
         Vector3.Dot(transform.up, Vector3.up) < 0.7f;
 
+    public bool IsMoving(float linearSpeedThreshold, float angularSpeedThreshold)
+    {
+        Initialize();
+        if (!gameObject.activeInHierarchy || body == null || body.IsSleeping())
+        {
+            return false;
+        }
+
+        return body.linearVelocity.sqrMagnitude > linearSpeedThreshold * linearSpeedThreshold ||
+            body.angularVelocity.sqrMagnitude > angularSpeedThreshold * angularSpeedThreshold;
+    }
+
+    public void HidePin()
+    {
+        Initialize();
+        if (body != null)
+        {
+            body.isKinematic = false;
+            body.linearVelocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+            body.isKinematic = true;
+        }
+
+        gameObject.SetActive(false);
+    }
+
     public void ResetPin()
     {
+        gameObject.SetActive(true);
         Initialize();
         if (body == null)
         {

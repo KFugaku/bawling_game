@@ -27,6 +27,12 @@ public class BowlingGame : MonoBehaviour
     [SerializeField] private float spinDecayPerSecond = 0.08f;
     [SerializeField] private float minimumCurveSpeed = 1f;
     [SerializeField] private float curveGuideOffset = 2f;
+    [Header("Game Flow")]
+    [SerializeField] private float minimumRollDuration = 2.2f;
+    [SerializeField] private float maximumRollDuration = 12f;
+    [SerializeField] private float pinSettleDuration = 0.8f;
+    [SerializeField] private float pinLinearSettleSpeed = 0.08f;
+    [SerializeField] private float pinAngularSettleSpeed = 0.25f;
 
     private readonly Vector3 ballStart = new Vector3(
         0f,
@@ -34,22 +40,36 @@ public class BowlingGame : MonoBehaviour
         RegulationBowlingDimensions.BallStartZ);
     private bool thrown;
     private bool ballInGutter;
-    private bool roundScored;
     private bool holdingBall;
     private bool aimingThrow;
+    private bool waitingForNextRoll;
+    private bool gameComplete;
     private float throwTime;
+    private float pinsStillSince = -1f;
     private float deliveryMouseSpeed;
     private float selectedCurveSpin;
     private float activeCurveSpin;
     private float sampledWheelDelta;
     private int mouseInputWarmupFrames;
-    private int score;
+    private int currentFrameIndex;
+    private int pinsStandingAtRollStart;
+    private int lastRollPins;
     private Vector3 deliveryVelocity;
     private LineRenderer aimGuide;
     private readonly Queue<WheelSpinSample> wheelSpinSamples = new Queue<WheelSpinSample>();
+    private readonly List<int> rolls = new List<int>();
+    private readonly List<int> currentFrameRolls = new List<int>();
+    private RackMode nextRackMode = RackMode.FullRack;
+    private string statusMessage = string.Empty;
 
     private const float ReleaseLineZ = 0f;
     private const int AimGuidePointCount = 16;
+
+    private enum RackMode
+    {
+        FullRack,
+        StandingPins
+    }
 
     private readonly struct WheelSpinSample
     {
@@ -88,7 +108,7 @@ public class BowlingGame : MonoBehaviour
 
     private void Start()
     {
-        ResetRound();
+        StartNewGame();
     }
 
     private void Update()
@@ -98,28 +118,33 @@ public class BowlingGame : MonoBehaviour
             return;
         }
 
-        if (Input.GetKeyDown(KeyCode.R))
+        if (gameComplete)
         {
-            ResetRound();
+            return;
+        }
+
+        if (waitingForNextRoll)
+        {
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                PrepareNextRoll();
+            }
+
             return;
         }
 
         if (!thrown)
         {
             HandleMouseThrowInput();
+            return;
         }
 
-        if (thrown && !ballInGutter && Mathf.Abs(ball.position.x) > RegulationBowlingDimensions.GutterEntryX)
+        if (!ballInGutter && Mathf.Abs(ball.position.x) > RegulationBowlingDimensions.GutterEntryX)
         {
             ballInGutter = true;
         }
 
-        if (thrown && !roundScored && Time.time - throwTime > 4f)
-        {
-            score = ballInGutter ? 0 : CountFallenPins();
-            roundScored = true;
-        }
-
+        UpdateRollCompletion();
     }
 
     private void FixedUpdate()
@@ -244,6 +269,8 @@ public class BowlingGame : MonoBehaviour
         SetAimGuideVisible(false);
         thrown = true;
         throwTime = Time.time;
+        pinsStillSince = -1f;
+        statusMessage = "投球中：ボールとピンが止まるまでお待ちください";
         activeCurveSpin = curveSpin;
         ball.isKinematic = false;
         ball.linearVelocity = direction * power;
@@ -306,6 +333,284 @@ public class BowlingGame : MonoBehaviour
             activeCurveSpin,
             0f,
             spinDecayPerSecond * Time.fixedDeltaTime);
+    }
+
+    private void UpdateRollCompletion()
+    {
+        float elapsed = Time.time - throwTime;
+        if (elapsed < minimumRollDuration)
+        {
+            return;
+        }
+
+        bool timedOut = elapsed >= maximumRollDuration;
+        if (!timedOut && !HasBallFinishedTraveling())
+        {
+            return;
+        }
+
+        if (!timedOut && ArePinsMoving())
+        {
+            pinsStillSince = -1f;
+            return;
+        }
+
+        if (pinsStillSince < 0f)
+        {
+            pinsStillSince = Time.time;
+        }
+
+        if (timedOut || Time.time - pinsStillSince >= pinSettleDuration)
+        {
+            CompleteRoll();
+        }
+    }
+
+    private bool HasBallFinishedTraveling()
+    {
+        Vector3 velocity = ball.linearVelocity;
+        velocity.y = 0f;
+        bool stopped = velocity.sqrMagnitude < 0.04f;
+        bool reachedPinDeck = ball.position.z >=
+            RegulationBowlingDimensions.FoulLineToHeadPin - RegulationBowlingDimensions.PinRowDepth;
+        bool leftPlayableArea = ball.position.y < -2f;
+        return stopped || reachedPinDeck || leftPlayableArea;
+    }
+
+    private bool ArePinsMoving()
+    {
+        if (pins == null)
+        {
+            return false;
+        }
+
+        foreach (BowlingPin pin in pins)
+        {
+            if (pin != null && pin.gameObject.activeInHierarchy &&
+                pin.IsMoving(pinLinearSettleSpeed, pinAngularSettleSpeed))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void CompleteRoll()
+    {
+        int standingPins = CountStandingPins();
+        int knockedPins = ballInGutter
+            ? 0
+            : Mathf.Clamp(pinsStandingAtRollStart - standingPins, 0, pinsStandingAtRollStart);
+
+        rolls.Add(knockedPins);
+        currentFrameRolls.Add(knockedPins);
+        lastRollPins = knockedPins;
+        HideBallAfterRoll();
+        thrown = false;
+        activeCurveSpin = 0f;
+
+        ResolveNextRollState();
+        Physics.SyncTransforms();
+    }
+
+    private void ResolveNextRollState()
+    {
+        int completedFrameNumber = currentFrameIndex + 1;
+        if (currentFrameIndex < BowlingScoreCalculator.FrameCount - 1)
+        {
+            bool strike = currentFrameRolls.Count == 1 &&
+                currentFrameRolls[0] == BowlingScoreCalculator.PinsPerRack;
+            if (currentFrameRolls.Count == 1 && !strike)
+            {
+                nextRackMode = RackMode.StandingPins;
+                HideFallenPins();
+                waitingForNextRoll = true;
+                statusMessage = $"第{completedFrameNumber}フレーム 1投目：{lastRollPins}ピン。Spaceで2投目";
+                return;
+            }
+
+            bool spare = !strike && currentFrameRolls.Count >= 2 &&
+                currentFrameRolls[0] + currentFrameRolls[1] == BowlingScoreCalculator.PinsPerRack;
+            currentFrameIndex++;
+            currentFrameRolls.Clear();
+            nextRackMode = RackMode.FullRack;
+            waitingForNextRoll = true;
+            string result = strike ? "ストライク！" : spare ? "スペア！" : $"{lastRollPins}ピン";
+            statusMessage = $"第{completedFrameNumber}フレーム終了：{result} Spaceで第{currentFrameIndex + 1}フレーム";
+            return;
+        }
+
+        ResolveTenthFrameState();
+    }
+
+    private void ResolveTenthFrameState()
+    {
+        int first = currentFrameRolls[0];
+        if (currentFrameRolls.Count == 1)
+        {
+            nextRackMode = first == BowlingScoreCalculator.PinsPerRack
+                ? RackMode.FullRack
+                : RackMode.StandingPins;
+            if (nextRackMode == RackMode.StandingPins)
+            {
+                HideFallenPins();
+            }
+
+            waitingForNextRoll = true;
+            string result = first == BowlingScoreCalculator.PinsPerRack ? "ストライク！" : $"{first}ピン";
+            statusMessage = $"第10フレーム 1投目：{result} Spaceで2投目";
+            return;
+        }
+
+        int second = currentFrameRolls[1];
+        if (currentFrameRolls.Count == 2)
+        {
+            bool firstWasStrike = first == BowlingScoreCalculator.PinsPerRack;
+            bool spare = !firstWasStrike && first + second == BowlingScoreCalculator.PinsPerRack;
+            if (firstWasStrike || spare)
+            {
+                nextRackMode = firstWasStrike && second < BowlingScoreCalculator.PinsPerRack
+                    ? RackMode.StandingPins
+                    : RackMode.FullRack;
+                if (nextRackMode == RackMode.StandingPins)
+                {
+                    HideFallenPins();
+                }
+
+                waitingForNextRoll = true;
+                string result = spare
+                    ? "スペア！"
+                    : second == BowlingScoreCalculator.PinsPerRack ? "ストライク！" : second + "ピン";
+                statusMessage = $"第10フレーム 2投目：{result} Spaceでボーナス投球";
+                return;
+            }
+        }
+
+        CompleteGame();
+    }
+
+    private void PrepareNextRoll()
+    {
+        ResetThrowState();
+        if (nextRackMode == RackMode.FullRack)
+        {
+            ResetAllPins();
+        }
+
+        ResetBallToStart();
+        pinsStandingAtRollStart = CountStandingPins();
+        waitingForNextRoll = false;
+        int rollNumber = currentFrameRolls.Count + 1;
+        statusMessage = $"第{currentFrameIndex + 1}フレーム・{rollNumber}投目：右クリックで投球開始";
+        Physics.SyncTransforms();
+    }
+
+    private void StartNewGame()
+    {
+        rolls.Clear();
+        currentFrameRolls.Clear();
+        currentFrameIndex = 0;
+        lastRollPins = 0;
+        gameComplete = false;
+        waitingForNextRoll = false;
+        nextRackMode = RackMode.FullRack;
+        ResetThrowState();
+        ResetAllPins();
+        ResetBallToStart();
+        pinsStandingAtRollStart = CountStandingPins();
+        statusMessage = "第1フレーム・1投目：右クリックで投球開始";
+        Physics.SyncTransforms();
+    }
+
+    private void CompleteGame()
+    {
+        waitingForNextRoll = false;
+        gameComplete = true;
+        int?[] cumulativeScores = BowlingScoreCalculator.CalculateCumulativeScores(rolls);
+        int finalScore = cumulativeScores[BowlingScoreCalculator.FrameCount - 1] ?? 0;
+        statusMessage = $"ゲーム終了！ 最終スコア：{finalScore}";
+    }
+
+    private void ResetThrowState()
+    {
+        thrown = false;
+        ballInGutter = false;
+        holdingBall = false;
+        aimingThrow = false;
+        pinsStillSince = -1f;
+        deliveryVelocity = Vector3.zero;
+        deliveryMouseSpeed = 0f;
+        ClearCurveInputSamples();
+        activeCurveSpin = 0f;
+        mouseInputWarmupFrames = 0;
+        UnlockCursor();
+        SetAimGuideVisible(false);
+    }
+
+    private void ResetAllPins()
+    {
+        if (pins == null)
+        {
+            return;
+        }
+
+        foreach (BowlingPin pin in pins)
+        {
+            if (pin != null)
+            {
+                pin.ResetPin();
+            }
+        }
+    }
+
+    private void HideFallenPins()
+    {
+        if (pins == null)
+        {
+            return;
+        }
+
+        foreach (BowlingPin pin in pins)
+        {
+            if (pin != null && pin.gameObject.activeInHierarchy && pin.IsFallen)
+            {
+                pin.HidePin();
+            }
+        }
+    }
+
+    private int CountStandingPins()
+    {
+        int standing = 0;
+        if (pins == null)
+        {
+            return standing;
+        }
+
+        foreach (BowlingPin pin in pins)
+        {
+            if (pin != null && pin.gameObject.activeInHierarchy && !pin.IsFallen)
+            {
+                standing++;
+            }
+        }
+
+        return standing;
+    }
+
+    private void HideBallAfterRoll()
+    {
+        if (ball == null)
+        {
+            return;
+        }
+
+        ball.isKinematic = false;
+        ball.linearVelocity = Vector3.zero;
+        ball.angularVelocity = Vector3.zero;
+        ball.isKinematic = true;
+        ball.gameObject.SetActive(false);
     }
 
     private float GetReleasePowerPercent()
@@ -455,60 +760,6 @@ public class BowlingGame : MonoBehaviour
         UnlockCursor();
     }
 
-    private int CountFallenPins()
-    {
-        int fallen = 0;
-        if (pins == null)
-        {
-            return fallen;
-        }
-
-        foreach (BowlingPin pin in pins)
-        {
-            if (pin != null && pin.IsFallen)
-            {
-                fallen++;
-            }
-        }
-
-        return fallen;
-    }
-
-    private void ResetRound()
-    {
-        thrown = false;
-        ballInGutter = false;
-        roundScored = false;
-        holdingBall = false;
-        aimingThrow = false;
-        deliveryVelocity = Vector3.zero;
-        deliveryMouseSpeed = 0f;
-        ClearCurveInputSamples();
-        activeCurveSpin = 0f;
-        mouseInputWarmupFrames = 0;
-        UnlockCursor();
-        SetAimGuideVisible(false);
-        score = 0;
-
-        if (ball != null)
-        {
-            ResetBallToStart();
-        }
-
-        if (pins != null)
-        {
-            foreach (BowlingPin pin in pins)
-            {
-                if (pin != null)
-                {
-                    pin.ResetPin();
-                }
-            }
-        }
-
-        Physics.SyncTransforms();
-    }
-
     private void ResetBallToStart()
     {
         ball.gameObject.SetActive(true);
@@ -601,15 +852,17 @@ public class BowlingGame : MonoBehaviour
             fontSize = 18,
             normal = { textColor = Color.white }
         };
+        GUIStyle scoreStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 14,
+            alignment = TextAnchor.MiddleCenter,
+            normal = { textColor = Color.white }
+        };
 
         GUI.Label(new Rect(24, 22, 500, 40), "Mini Bowling", titleStyle);
         GUI.Label(new Rect(25, 66, 1200, 30), "右クリックで投球開始 → マウス移動でボールを運ぶ → 離す直前にホイールを回す → リリース", textStyle);
-
-        int pinCount = pins?.Length ?? 0;
-        string result = roundScored
-            ? (ballInGutter ? "ガター：倒したピン 0 / " + pinCount : $"倒したピン: {score} / {pinCount}")
-            : ballInGutter ? "ガター！ ピンは倒せません" : "狙いを定めて投げよう";
-        GUI.Label(new Rect(25, 96, 500, 30), result, textStyle);
+        GUI.Label(new Rect(25, 96, 1100, 30), statusMessage, textStyle);
+        DrawScoreboard(scoreStyle, textStyle);
 
         if (aimingThrow)
         {
@@ -618,27 +871,59 @@ public class BowlingGame : MonoBehaviour
             string directionText = Mathf.Abs(angle) < 0.5f
                 ? "正面 0°"
                 : angle < 0f ? $"左 {Mathf.Abs(angle):0.0}°" : $"右 {angle:0.0}°";
-            GUI.Label(new Rect(25, 126, 230, 30), $"方向：{directionText}", textStyle);
-            GUI.Label(new Rect(255, 126, 64, 30), "強さ", textStyle);
-            GUI.Box(new Rect(320, 132, 170, 18), string.Empty);
-            GUI.Box(new Rect(320, 132, 170f * powerPercent, 18), string.Empty);
-            GUI.Label(new Rect(505, 126, 350, 30), $"リリースラインまで {GetDeliveryProgress() * 100f:0}%", textStyle);
+            GUI.Label(new Rect(25, 220, 230, 30), $"方向：{directionText}", textStyle);
+            GUI.Label(new Rect(255, 220, 64, 30), "強さ", textStyle);
+            GUI.Box(new Rect(320, 226, 170, 18), string.Empty);
+            GUI.Box(new Rect(320, 226, 170f * powerPercent, 18), string.Empty);
+            GUI.Label(new Rect(505, 220, 350, 30), $"リリースラインまで {GetDeliveryProgress() * 100f:0}%", textStyle);
             string curveText = Mathf.Abs(selectedCurveSpin) < 0.01f
                 ? "なし"
                 : selectedCurveSpin < 0f ? "左カーブ" : "右カーブ";
             GUI.Label(
-                new Rect(25, 156, 600, 30),
+                new Rect(25, 250, 600, 30),
                 $"リリース回転：{curveText} {Mathf.Abs(selectedCurveSpin) * 100f:0}%（ホイール速度で変化）",
                 textStyle);
         }
-        if (GUI.Button(new Rect(25, 198, 130, 36), "リセット (R)"))
+
+        if (waitingForNextRoll)
         {
-            ResetRound();
+            GUI.Label(new Rect(25, 285, 800, 30), "Spaceを押して次の投球へ", textStyle);
         }
 
-        if (roundScored && GUI.Button(new Rect(25, 242, 130, 36), "もう一度投げる"))
+        if (gameComplete && GUI.Button(new Rect(25, 285, 160, 38), "新しいゲーム"))
         {
-            ResetRound();
+            StartNewGame();
         }
+    }
+
+    private void DrawScoreboard(GUIStyle scoreStyle, GUIStyle textStyle)
+    {
+        int?[] cumulativeScores = BowlingScoreCalculator.CalculateCumulativeScores(rolls);
+        string[] frameRolls = BowlingScoreCalculator.FormatFrameRolls(rolls);
+        const float startX = 25f;
+        const float startY = 130f;
+        const float cellWidth = 88f;
+        const float cellHeight = 78f;
+
+        int latestResolvedScore = 0;
+        for (int frame = 0; frame < BowlingScoreCalculator.FrameCount; frame++)
+        {
+            float x = startX + frame * cellWidth;
+            GUI.Box(new Rect(x, startY, cellWidth - 2f, cellHeight), string.Empty);
+            GUI.Label(new Rect(x, startY + 1f, cellWidth - 2f, 22f), (frame + 1).ToString(), scoreStyle);
+            GUI.Label(new Rect(x, startY + 23f, cellWidth - 2f, 24f), frameRolls[frame], scoreStyle);
+            string scoreText = cumulativeScores[frame]?.ToString() ?? "-";
+            GUI.Label(new Rect(x, startY + 49f, cellWidth - 2f, 24f), scoreText, scoreStyle);
+            if (cumulativeScores[frame].HasValue)
+            {
+                latestResolvedScore = cumulativeScores[frame].Value;
+            }
+        }
+
+        GUI.Label(new Rect(920, startY + 4f, 260, 30), $"確定スコア：{latestResolvedScore}", textStyle);
+        string progressText = gameComplete
+            ? "ゲーム終了"
+            : $"第{currentFrameIndex + 1}フレーム / {currentFrameRolls.Count + 1}投目";
+        GUI.Label(new Rect(920, startY + 36f, 300, 30), progressText, textStyle);
     }
 }
