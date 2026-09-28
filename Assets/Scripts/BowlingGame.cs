@@ -10,7 +10,9 @@ public class BowlingGame : MonoBehaviour
     [SerializeField] private float heldBallHeight = 2.2f;
     [SerializeField] private float forwardMouseSensitivity = 0.16f;
     [SerializeField] private float horizontalMouseSensitivity = 0.04f;
-    [SerializeField] private float horizontalDirectionScale = 0.3f;
+    [SerializeField] private float horizontalDirectionScale = 0.15f;
+    [SerializeField] private float horizontalDirectionDeadZone = 0.12f;
+    [SerializeField] private float maximumThrowAngle = 8f;
     [SerializeField] private float throwSpeedBoost = 1.15f;
     [SerializeField] private float minimumThrowPower = 1.5f;
     [SerializeField] private float slowMouseSpeed = 2f;
@@ -748,10 +750,30 @@ public class BowlingGame : MonoBehaviour
 
     private Vector3 GetAdjustedReleaseVelocity()
     {
+        float forwardSpeed = Mathf.Max(0f, deliveryVelocity.z);
+        float horizontalSpeed = deliveryVelocity.x * horizontalDirectionScale;
+
+        // Ignore tiny lateral input at release. This keeps hand jitter from
+        // becoming a sharp throw angle while preserving intentional movement.
+        if (Mathf.Abs(horizontalSpeed) < horizontalDirectionDeadZone)
+        {
+            horizontalSpeed = 0f;
+        }
+
+        // Direction used to be based on the most recent mouse velocity with no
+        // cap. A small sideways motion could therefore dominate a slow forward
+        // motion. Keep the analogue feel, but constrain it to a usable angle.
+        float maximumHorizontalSpeed = forwardSpeed
+            * Mathf.Tan(maximumThrowAngle * Mathf.Deg2Rad);
+        horizontalSpeed = Mathf.Clamp(
+            horizontalSpeed,
+            -maximumHorizontalSpeed,
+            maximumHorizontalSpeed);
+
         return new Vector3(
-            deliveryVelocity.x * horizontalDirectionScale,
+            horizontalSpeed,
             0f,
-            Mathf.Max(0f, deliveryVelocity.z));
+            forwardSpeed);
     }
 
     private float GetThrowAngle()
