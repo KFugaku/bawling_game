@@ -266,6 +266,18 @@ public class BowlingGame : MonoBehaviour
 
     private void ReleaseGestureThrow()
     {
+        // The release line is visual-only. Keep a ball released directly on it
+        // just clear of the line and hand the final kinematic position to physics
+        // before applying its roll velocity.
+        if (ball.position.z >= ReleaseLineZ - 0.02f)
+        {
+            ball.position = new Vector3(
+                ball.position.x,
+                Mathf.Max(ball.position.y, RegulationBowlingDimensions.BallRadius + 0.02f),
+                ReleaseLineZ + 0.02f);
+            Physics.SyncTransforms();
+        }
+
         ThrowBall(GetReleaseDirection(), GetReleaseSpeed(), selectedCurveSpin);
     }
 
@@ -289,6 +301,7 @@ public class BowlingGame : MonoBehaviour
         Vector3 rollingSpin = Vector3.Cross(Vector3.up, direction) * (power * 2f);
         Vector3 sideSpin = Vector3.up * (activeCurveSpin * maximumSideSpin);
         ball.angularVelocity = rollingSpin + sideSpin;
+        ball.WakeUp();
     }
 
     private void UpdateCurveSelection()
@@ -793,12 +806,14 @@ public class BowlingGame : MonoBehaviour
 
     private void CreateReleaseLine()
     {
-        if (GameObject.Find("Release Line") != null)
+        GameObject releaseLine = GameObject.Find("Release Line");
+        if (releaseLine != null)
         {
+            DisableReleaseLineCollider(releaseLine);
             return;
         }
 
-        GameObject releaseLine = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        releaseLine = GameObject.CreatePrimitive(PrimitiveType.Cube);
         releaseLine.name = "Release Line";
         releaseLine.transform.position = new Vector3(0f, 0.012f, ReleaseLineZ);
         releaseLine.transform.localScale = new Vector3(
@@ -806,11 +821,7 @@ public class BowlingGame : MonoBehaviour
             0.024f,
             0.12f);
 
-        Collider lineCollider = releaseLine.GetComponent<Collider>();
-        if (lineCollider != null)
-        {
-            Destroy(lineCollider);
-        }
+        DisableReleaseLineCollider(releaseLine);
 
         Renderer lineRenderer = releaseLine.GetComponent<Renderer>();
         if (lineRenderer != null)
@@ -819,6 +830,17 @@ public class BowlingGame : MonoBehaviour
             // name. Shader.Find targets can be stripped from WebGL builds, which would
             // make Material's constructor throw and stop the rest of Awake from running.
             lineRenderer.material.color = new Color(0.1f, 0.75f, 1f);
+        }
+    }
+
+    private static void DisableReleaseLineCollider(GameObject releaseLine)
+    {
+        Collider lineCollider = releaseLine.GetComponent<Collider>();
+        if (lineCollider != null)
+        {
+            // Disabling is immediate, unlike Destroy, so the ball can never hit
+            // the visual marker during the same frame it is released.
+            lineCollider.enabled = false;
         }
     }
 
