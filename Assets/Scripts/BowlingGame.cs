@@ -864,28 +864,53 @@ public class BowlingGame : MonoBehaviour
 
     private void OnGUI()
     {
+        // Lay the HUD out against the rendered game resolution instead of fixed
+        // editor pixels. This keeps every score cell on screen at any aspect ratio.
+        Matrix4x4 previousGuiMatrix = GUI.matrix;
+        float uiScale = Mathf.Clamp(Screen.height / 900f, 0.85f, 1.35f);
+        GUI.matrix = Matrix4x4.Scale(new Vector3(uiScale, uiScale, 1f));
+        float viewWidth = Screen.width / uiScale;
+
         GUIStyle titleStyle = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 28,
+            fontSize = 32,
             fontStyle = FontStyle.Bold,
             normal = { textColor = Color.white }
         };
         GUIStyle textStyle = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 18,
+            fontSize = 21,
             normal = { textColor = Color.white }
         };
         GUIStyle scoreStyle = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 14,
+            fontSize = 20,
+            fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter,
             normal = { textColor = Color.white }
         };
+        GUIStyle helpStyle = new GUIStyle(textStyle)
+        {
+            fontSize = 18
+        };
+        GUIStyle buttonStyle = new GUIStyle(GUI.skin.button)
+        {
+            fontSize = 20,
+            fontStyle = FontStyle.Bold
+        };
 
-        GUI.Label(new Rect(24, 22, 500, 40), "Mini Bowling", titleStyle);
-        GUI.Label(new Rect(25, 66, 1200, 30), "右クリックで投球開始 → マウス移動でボールを運ぶ → 離す直前にホイールを回す → リリース", textStyle);
-        GUI.Label(new Rect(25, 96, 1100, 30), statusMessage, textStyle);
-        DrawScoreboard(scoreStyle, textStyle);
+        Color previousColor = GUI.color;
+        GUI.color = new Color(0.08f, 0.1f, 0.14f, 0.88f);
+        GUI.Box(new Rect(12f, 10f, viewWidth - 24f, 288f), GUIContent.none);
+        GUI.color = previousColor;
+
+        GUI.Label(new Rect(24f, 18f, viewWidth - 48f, 42f), "Mini Bowling", titleStyle);
+        GUI.Label(
+            new Rect(25f, 57f, viewWidth - 50f, 28f),
+            "右クリックで投球開始 → マウス移動でボールを運ぶ → 離す直前にホイールを回す → リリース",
+            helpStyle);
+        GUI.Label(new Rect(25f, 87f, viewWidth - 50f, 32f), statusMessage, textStyle);
+        DrawScoreboard(scoreStyle, textStyle, helpStyle, viewWidth);
 
         if (aimingThrow)
         {
@@ -894,65 +919,81 @@ public class BowlingGame : MonoBehaviour
             string directionText = Mathf.Abs(angle) < 0.5f
                 ? "正面 0°"
                 : angle < 0f ? $"左 {Mathf.Abs(angle):0.0}°" : $"右 {angle:0.0}°";
-            GUI.Label(new Rect(25, 220, 230, 30), $"方向：{directionText}", textStyle);
-            GUI.Label(new Rect(255, 220, 64, 30), "強さ", textStyle);
-            GUI.Box(new Rect(320, 226, 170, 18), string.Empty);
-            GUI.Box(new Rect(320, 226, 170f * powerPercent, 18), string.Empty);
-            GUI.Label(new Rect(505, 220, 350, 30), $"リリースラインまで {GetDeliveryProgress() * 100f:0}%", textStyle);
+            GUI.Label(new Rect(25f, 310f, 245f, 34f), $"方向：{directionText}", textStyle);
+            GUI.Label(new Rect(270f, 310f, 60f, 34f), "強さ", textStyle);
+            GUI.Box(new Rect(335f, 318f, 220f, 22f), string.Empty);
+            GUI.Box(new Rect(335f, 318f, 220f * powerPercent, 22f), string.Empty);
+            GUI.Label(
+                new Rect(575f, 310f, viewWidth - 600f, 34f),
+                $"リリースラインまで {GetDeliveryProgress() * 100f:0}%",
+                textStyle);
             string curveText = Mathf.Abs(selectedCurveSpin) < 0.01f
                 ? "なし"
                 : selectedCurveSpin < 0f ? "左カーブ" : "右カーブ";
             GUI.Label(
-                new Rect(25, 250, 600, 30),
+                new Rect(25f, 346f, viewWidth - 50f, 34f),
                 $"リリース回転：{curveText} {Mathf.Abs(selectedCurveSpin) * 100f:0}%（ホイール速度で変化）",
                 textStyle);
         }
 
         if (waitingForNextRoll)
         {
-            GUI.Label(new Rect(25, 285, 800, 30), "Spaceを押して次の投球へ", textStyle);
+            GUI.Label(new Rect(25f, 310f, viewWidth - 50f, 34f), "Spaceを押して次の投球へ", textStyle);
         }
 
-        if (gameComplete && GUI.Button(new Rect(25, 285, 160, 38), "新しいゲーム"))
+        if (gameComplete && GUI.Button(
+            new Rect(25f, 310f, 220f, 52f),
+            "新しいゲーム",
+            buttonStyle))
         {
             StartNewGame();
         }
+
+        GUI.matrix = previousGuiMatrix;
     }
 
-    private void DrawScoreboard(GUIStyle scoreStyle, GUIStyle textStyle)
+    private void DrawScoreboard(
+        GUIStyle scoreStyle,
+        GUIStyle textStyle,
+        GUIStyle helpStyle,
+        float viewWidth)
     {
         int?[] cumulativeScores = BowlingScoreCalculator.CalculateCumulativeScores(rolls);
         string[] frameRolls = BowlingScoreCalculator.FormatFrameRolls(rolls);
         const float startX = 25f;
-        const float startY = 130f;
-        const float cellWidth = 88f;
-        const float cellHeight = 78f;
+        const float startY = 124f;
+        const float cellHeight = 104f;
+        float cellWidth = (viewWidth - startX * 2f) / BowlingScoreCalculator.FrameCount;
 
         int latestResolvedScore = 0;
         for (int frame = 0; frame < BowlingScoreCalculator.FrameCount; frame++)
         {
             float x = startX + frame * cellWidth;
             GUI.Box(new Rect(x, startY, cellWidth - 2f, cellHeight), string.Empty);
-            GUI.Label(new Rect(x, startY + 1f, cellWidth - 2f, 22f), (frame + 1).ToString(), scoreStyle);
-            GUI.Label(new Rect(x, startY + 23f, cellWidth - 2f, 24f), frameRolls[frame], scoreStyle);
+            GUI.Label(new Rect(x, startY + 1f, cellWidth - 2f, 28f), (frame + 1).ToString(), scoreStyle);
+            GUI.Label(new Rect(x, startY + 30f, cellWidth - 2f, 34f), frameRolls[frame], scoreStyle);
             string scoreText = cumulativeScores[frame]?.ToString();
             if (scoreText == null && !string.IsNullOrEmpty(frameRolls[frame]))
             {
                 scoreText = "確定待ち";
             }
 
-            GUI.Label(new Rect(x, startY + 49f, cellWidth - 2f, 24f), scoreText, scoreStyle);
+            GUI.Label(new Rect(x, startY + 66f, cellWidth - 2f, 34f), scoreText, scoreStyle);
             if (cumulativeScores[frame].HasValue)
             {
                 latestResolvedScore = cumulativeScores[frame].Value;
             }
         }
 
-        GUI.Label(new Rect(920, startY + 4f, 300, 30), $"確定済み累計：{latestResolvedScore}", textStyle);
         string progressText = gameComplete
             ? "ゲーム終了"
             : $"第{currentFrameIndex + 1}フレーム / {currentFrameRolls.Count + 1}投目";
-        GUI.Label(new Rect(920, startY + 36f, 300, 30), progressText, textStyle);
-        GUI.Label(new Rect(920, startY + 64f, 330, 24), "各枠：上段＝投球結果 / 下段＝累計", scoreStyle);
+        float summaryY = startY + cellHeight + 5f;
+        GUI.Label(new Rect(startX, summaryY, 330f, 34f), $"確定済み累計：{latestResolvedScore}", textStyle);
+        GUI.Label(new Rect(355f, summaryY, 350f, 34f), progressText, textStyle);
+        GUI.Label(
+            new Rect(710f, summaryY + 2f, viewWidth - 735f, 30f),
+            "各枠：上段＝投球結果 / 下段＝累計",
+            helpStyle);
     }
 }

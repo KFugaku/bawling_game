@@ -46,7 +46,7 @@ public static class RegulationBowlingDimensions
     public const float PlayerCameraZ = -23f;
     public const float PlayerCameraTargetHeight = 1.2f;
     public const float PlayerCameraTargetZ = 45f;
-    // 44 degrees gives the same practical framing as a 1.1x Game-view zoom,
-    // making the pin rack easier to read without changing the play area.
-    public const float PlayerCameraFieldOfView = 44f;
+    // Keep the ball and distant pin rack readable while the Unity Game view is
+    // set to Fit. The editor's 0.5x/1x control should only be used for previewing.
+    public const float PlayerCameraFieldOfView = 32f;
 }
