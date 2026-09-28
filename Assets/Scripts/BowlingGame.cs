@@ -912,7 +912,12 @@ public class BowlingGame : MonoBehaviour
             GUI.Box(new Rect(x, startY, cellWidth - 2f, cellHeight), string.Empty);
             GUI.Label(new Rect(x, startY + 1f, cellWidth - 2f, 22f), (frame + 1).ToString(), scoreStyle);
             GUI.Label(new Rect(x, startY + 23f, cellWidth - 2f, 24f), frameRolls[frame], scoreStyle);
-            string scoreText = cumulativeScores[frame]?.ToString() ?? "-";
+            string scoreText = cumulativeScores[frame]?.ToString();
+            if (scoreText == null && !string.IsNullOrEmpty(frameRolls[frame]))
+            {
+                scoreText = "確定待ち";
+            }
+
             GUI.Label(new Rect(x, startY + 49f, cellWidth - 2f, 24f), scoreText, scoreStyle);
             if (cumulativeScores[frame].HasValue)
             {
@@ -920,10 +925,11 @@ public class BowlingGame : MonoBehaviour
             }
         }
 
-        GUI.Label(new Rect(920, startY + 4f, 260, 30), $"確定スコア：{latestResolvedScore}", textStyle);
+        GUI.Label(new Rect(920, startY + 4f, 300, 30), $"確定済み累計：{latestResolvedScore}", textStyle);
         string progressText = gameComplete
             ? "ゲーム終了"
             : $"第{currentFrameIndex + 1}フレーム / {currentFrameRolls.Count + 1}投目";
         GUI.Label(new Rect(920, startY + 36f, 300, 30), progressText, textStyle);
+        GUI.Label(new Rect(920, startY + 64f, 330, 24), "各枠：上段＝投球結果 / 下段＝累計", scoreStyle);
     }
 }
