@@ -11,7 +11,7 @@ public class BowlingGame : MonoBehaviour
     // This controls only how far the held ball travels during the approach.
     // Release power still uses the raw mouse speed, so slowing the approach
     // gives the player more time to release without weakening the throw.
-    [SerializeField] private float forwardMouseSensitivity = 0.06f;
+    [SerializeField] private float forwardMouseSensitivity = 0.075f;
     [SerializeField] private float horizontalMouseSensitivity = 0.04f;
     [SerializeField] private float horizontalDirectionScale = 0.15f;
     [SerializeField] private float horizontalDirectionDeadZone = 0.12f;
@@ -19,11 +19,13 @@ public class BowlingGame : MonoBehaviour
     [SerializeField] private float throwSpeedBoost = 1.15f;
     [SerializeField] private float minimumThrowPower = 1.5f;
     [SerializeField] private float slowMouseSpeed = 2f;
-    [SerializeField] private float fastMouseSpeed = 30f;
+    [SerializeField] private float fastMouseSpeed = 24f;
     [SerializeField] private float mouseSpeedExponent = 2f;
     [SerializeField] private float mouseSpeedAveraging = 7f;
     [SerializeField] private float velocitySmoothing = 18f;
     [SerializeField, Range(0.1f, 1f)] private float fullPowerReleaseProgress = 0.5f;
+    [SerializeField, Range(0.5f, 0.95f)] private float assistedReleaseStartProgress = 0.7f;
+    [SerializeField] private float assistedReleaseDuration = 0.1f;
     [Header("Ball Curve")]
     [SerializeField] private float wheelSpinSampleWindow = 0.2f;
     [SerializeField] private float wheelDeltaForMaximumSpin = 0.4f;
@@ -56,11 +58,17 @@ public class BowlingGame : MonoBehaviour
     private float selectedCurveSpin;
     private float activeCurveSpin;
     private float sampledWheelDelta;
+    private float assistedReleaseStartTime;
     private int mouseInputWarmupFrames;
     private int currentFrameIndex;
     private int pinsStandingAtRollStart;
     private int lastRollPins;
     private Vector3 deliveryVelocity;
+    private Vector3 assistedReleaseStartPosition;
+    private Vector3 assistedReleaseDirection;
+    private float assistedReleasePower;
+    private float assistedReleaseSpin;
+    private bool assistedReleaseActive;
     private LineRenderer aimGuide;
     private readonly Queue<WheelSpinSample> wheelSpinSamples = new Queue<WheelSpinSample>();
     private readonly List<int> rolls = new List<int>();
@@ -72,9 +80,10 @@ public class BowlingGame : MonoBehaviour
     private Color celebrationColor = Color.white;
     private float celebrationStartTime = -10f;
 
-    // Move the release point slightly toward the pins so the player has a
-    // longer, less rushed approach before letting go of the ball.
-    private const float ReleaseLineZ = 5f;
+    // Keep a useful approach without requiring the cursor to travel across the
+    // entire screen. This is the midpoint between the original short approach
+    // and the later, overly long five-unit release line.
+    private const float ReleaseLineZ = 2f;
     // Browser pointer-lock reports a much smaller Mouse Y value than the Editor.
     // Compensate only the held-ball approach distance; release power, direction,
     // and curve input keep using their existing raw input calculations.
@@ -172,6 +181,12 @@ public class BowlingGame : MonoBehaviour
 
     private void HandleMouseThrowInput()
     {
+        if (assistedReleaseActive)
+        {
+            UpdateAssistedRelease();
+            return;
+        }
+
         if (Input.GetMouseButtonDown(1))
         {
             BeginHoldingBall();
@@ -184,14 +199,31 @@ public class BowlingGame : MonoBehaviour
 
         if (aimingThrow)
         {
+            EnsureCursorLocked();
             UpdateCurveSelection();
             UpdateDelivery();
             UpdateAimGuide();
         }
 
-        if (Input.GetMouseButtonUp(1))
+        float deliveryProgress = GetDeliveryProgress();
+        if (deliveryProgress >= 0.999f)
         {
-            ReleaseGestureThrow();
+            BeginAssistedRelease();
+            return;
+        }
+
+        // Checking the current button state as well as the edge event prevents
+        // a lost WebGL mouse-up event from leaving the ball stuck in the hand.
+        if (Input.GetMouseButtonUp(1) || !Input.GetMouseButton(1))
+        {
+            if (deliveryProgress >= assistedReleaseStartProgress)
+            {
+                BeginAssistedRelease();
+            }
+            else
+            {
+                ReleaseGestureThrow();
+            }
         }
     }
 
@@ -218,6 +250,17 @@ public class BowlingGame : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
         SetAimGuideVisible(true);
+    }
+
+    private void EnsureCursorLocked()
+    {
+        if (Cursor.lockState == CursorLockMode.Locked)
+        {
+            return;
+        }
+
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     private void UpdateDelivery()
@@ -293,6 +336,45 @@ public class BowlingGame : MonoBehaviour
         }
 
         ThrowBall(GetReleaseDirection(), GetReleaseSpeed(), selectedCurveSpin);
+    }
+
+    private void BeginAssistedRelease()
+    {
+        if (assistedReleaseActive)
+        {
+            return;
+        }
+
+        assistedReleaseActive = true;
+        assistedReleaseStartTime = Time.unscaledTime;
+        assistedReleaseStartPosition = ball.position;
+        assistedReleaseDirection = GetReleaseDirection();
+        assistedReleasePower = GetReleaseSpeed();
+        assistedReleaseSpin = selectedCurveSpin;
+        aimingThrow = false;
+        UnlockCursor();
+        SetAimGuideVisible(false);
+    }
+
+    private void UpdateAssistedRelease()
+    {
+        float duration = Mathf.Max(assistedReleaseDuration, 0.01f);
+        float progress = Mathf.Clamp01((Time.unscaledTime - assistedReleaseStartTime) / duration);
+        float easedProgress = 1f - (1f - progress) * (1f - progress);
+        Vector3 releasePosition = new Vector3(
+            assistedReleaseStartPosition.x,
+            RegulationBowlingDimensions.BallRadius + 0.02f,
+            ReleaseLineZ + 0.02f);
+        ball.position = Vector3.Lerp(assistedReleaseStartPosition, releasePosition, easedProgress);
+
+        if (progress < 1f)
+        {
+            return;
+        }
+
+        Physics.SyncTransforms();
+        assistedReleaseActive = false;
+        ThrowBall(assistedReleaseDirection, assistedReleasePower, assistedReleaseSpin);
     }
 
     private void ThrowBall(Vector3 direction, float power, float curveSpin)
@@ -664,6 +746,7 @@ public class BowlingGame : MonoBehaviour
         pinsStillSince = -1f;
         deliveryVelocity = Vector3.zero;
         deliveryMouseSpeed = 0f;
+        assistedReleaseActive = false;
         ClearCurveInputSamples();
         activeCurveSpin = 0f;
         mouseInputWarmupFrames = 0;
@@ -1038,6 +1121,11 @@ public class BowlingGame : MonoBehaviour
         {
             fontSize = 18
         };
+        GUIStyle releaseReadyStyle = new GUIStyle(textStyle)
+        {
+            fontStyle = FontStyle.Bold,
+            normal = { textColor = new Color(0.35f, 1f, 0.55f) }
+        };
         GUIStyle buttonStyle = new GUIStyle(GUI.skin.button)
         {
             fontSize = 20,
@@ -1052,7 +1140,7 @@ public class BowlingGame : MonoBehaviour
         GUI.Label(new Rect(24f, 18f, viewWidth - 48f, 42f), "Mini Bowling", titleStyle);
         GUI.Label(
             new Rect(25f, 57f, viewWidth - 50f, 28f),
-            "右クリック長押しでボールを持つ → マウス移動で助走・方向を調整 → 右クリックを離して投球（離す直前のホイール操作でカーブ）",
+            "右クリック長押しでボールを持つ → マウス移動で助走・方向を調整 → 緑のゾーンで離して投球（終端では自動リリース）",
             helpStyle);
         GUI.Label(new Rect(25f, 87f, viewWidth - 50f, 32f), statusMessage, textStyle);
         DrawScoreboard(scoreStyle, textStyle, helpStyle, viewWidth);
@@ -1060,6 +1148,8 @@ public class BowlingGame : MonoBehaviour
         if (aimingThrow)
         {
             float powerPercent = GetReleasePowerPercent();
+            float deliveryProgress = GetDeliveryProgress();
+            bool releaseReady = deliveryProgress >= assistedReleaseStartProgress;
             float angle = GetThrowAngle();
             string directionText = Mathf.Abs(angle) < 0.5f
                 ? "正面 0°"
@@ -1070,8 +1160,10 @@ public class BowlingGame : MonoBehaviour
             GUI.Box(new Rect(335f, 318f, 220f * powerPercent, 22f), string.Empty);
             GUI.Label(
                 new Rect(575f, 310f, viewWidth - 600f, 34f),
-                $"リリースラインまで {GetDeliveryProgress() * 100f:0}%",
-                textStyle);
+                releaseReady
+                    ? $"リリースOK {deliveryProgress * 100f:0}%"
+                    : $"リリースラインまで {deliveryProgress * 100f:0}%",
+                releaseReady ? releaseReadyStyle : textStyle);
             string curveText = Mathf.Abs(selectedCurveSpin) < 0.01f
                 ? "なし"
                 : selectedCurveSpin < 0f ? "左カーブ" : "右カーブ";

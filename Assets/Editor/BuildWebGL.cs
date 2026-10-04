@@ -54,8 +54,45 @@ namespace MiniBowling.Editor
                     $"WebGL build failed: {summary.result} ({summary.totalErrors} errors)");
             }
 
+            AddReliablePointerLock(outputPath);
             File.WriteAllText(Path.Combine(outputPath, ".nojekyll"), string.Empty);
             Debug.Log($"WebGL build completed: {outputPath} ({summary.totalSize} bytes)");
+        }
+
+        private static void AddReliablePointerLock(string outputPath)
+        {
+            string indexPath = Path.Combine(outputPath, "index.html");
+            string html = File.ReadAllText(indexPath);
+            const string marker = "// Mini Bowling: keep relative mouse input away from screen edges.";
+            if (html.Contains(marker))
+            {
+                return;
+            }
+
+            const string canvasDeclaration =
+                "      var canvas = document.querySelector(\"#unity-canvas\");";
+            if (!html.Contains(canvasDeclaration))
+            {
+                throw new InvalidOperationException(
+                    "Could not add WebGL pointer-lock support because the canvas declaration was not found.");
+            }
+
+            const string pointerLockScript = @"
+
+      // Mini Bowling: keep relative mouse input away from screen edges.
+      canvas.addEventListener('contextmenu', function(event) {
+        event.preventDefault();
+      });
+      canvas.addEventListener('mousedown', function(event) {
+        if (event.button !== 2) return;
+        canvas.focus();
+        if (document.pointerLockElement !== canvas && canvas.requestPointerLock) {
+          canvas.requestPointerLock();
+        }
+      });";
+
+            html = html.Replace(canvasDeclaration, canvasDeclaration + pointerLockScript);
+            File.WriteAllText(indexPath, html);
         }
     }
 }
